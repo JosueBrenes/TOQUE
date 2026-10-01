@@ -114,7 +114,7 @@ and pinning it by hash in `server.properties`:
 
 ```properties
 resource-pack=https://raw.githubusercontent.com/JosueBrenes/TOQUE/main/resourcepack/TOQUE_Death_ResourcePack.zip
-resource-pack-sha1=ab893b5d91e61a63fe360c3c758df3077ee88d84
+resource-pack-sha1=de544d9548bc42e17fa849a5c7efa3aae5ba5225
 ```
 
 Both lines are coupled to the file: its path decides the URL and its contents decide

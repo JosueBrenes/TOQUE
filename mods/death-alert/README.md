@@ -19,7 +19,8 @@ Built from the repository root: `./gradlew :death-alert:build`
   and objective.
 - **Server list MOTD.** Rebuilt on every ping with the live Try, day and toll.
 - **Target panel.** Look at any mob, player or animal up to 24 blocks away and a
-  box at the top of the screen shows its name, its hearts and the mod it comes from.
+  box at the top of the screen, styled like the side panel, shows its name, its
+  hearts and its exact health.
 
 ## Package layout
 

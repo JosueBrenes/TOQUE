@@ -4,7 +4,8 @@ The target panel (the box naming the mob a player looks at) is drawn by a vanill
 client from nothing but a boss bar title. Everything it needs comes from here:
 
 - fonts that draw the panel's box, the hearts, and copies of the default font
-  shifted down so the panel can hold three lines in a one-line title;
+  shifted down so the panel can hold three lines in a one-line title; the look
+  follows the side panel, which is the vanilla scoreboard;
 - see-through green boss bar sprites, so the bar under the title is not drawn;
 - the advance of every default-font glyph, which the server needs to step back
   and forth inside the title with negative spaces;
@@ -40,20 +41,25 @@ MOD_DATA = os.path.join(HERE, "..", "mods", "death-alert", "src", "main", "resou
 # Offsets are pixels below the top of the boss bar title line.
 BOX_TOP = 2
 BOX_HEIGHT = 37
-NAME_TOP = 6
+HEADER_HEIGHT = 11          # the darker band the name sits in
+NAME_TOP = 4
 HEART_TOP = 16
-COUNT_TOP = 17
-MOD_TOP = 27
+INFO_TOP = 27
+BULLET_TOP = 29
 
 BOX_LEFT, BOX_RIGHT = 0xE000, 0xE001
 BOX_FILL = 0xE010            # + k draws a 2^k wide strip, k = 0..7
 HEART_FULL, HEART_HALF, HEART_EMPTY = 0xE100, 0xE101, 0xE102
+BULLET = 0xE200
 SPACE_BACK = 0xF000          # + k moves back 2^k pixels, k = 0..9
 SPACE_FORWARD = 0xF100       # + k moves forward 2^k pixels
 
-BACKGROUND = (16, 0, 16, 240)
-BORDER_TOP = (106, 63, 208, 255)
-BORDER_BOTTOM = (51, 25, 110, 255)
+# The side panel is the vanilla scoreboard: black at 40% behind its title and 30%
+# behind its lines. A boss bar title is drawn twice, its shadow first, and the box
+# is part of the title, so each layer here is lighter to land on the same shade.
+HEADER = (0, 0, 0, 58)
+BODY = (0, 0, 0, 42)
+ACCENT = (163, 13, 13, 255)  # the dark end of the TOQUE red gradient
 
 
 def find_client_jar():
@@ -82,10 +88,6 @@ def find_asset(name):
     raise SystemExit(f"{name} not found in any launcher's assets; start Minecraft 1.21.1 once.")
 
 
-def mix(a, b, t):
-    return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
-
-
 def save(image, *path):
     full = os.path.join(PACK, *path)
     os.makedirs(os.path.dirname(full), exist_ok=True)
@@ -102,39 +104,32 @@ def write_json(data, *path):
 
 # --- The box ---------------------------------------------------------------------
 
-def box_column(kind):
-    """One column of the box: a tooltip with clipped corners and a purple frame."""
-    h = BOX_HEIGHT
-    col = [(0, 0, 0, 0)] * h
-    for y in range(h):
-        border = mix(BORDER_TOP, BORDER_BOTTOM, (y - 1) / (h - 3))
-        if kind == "outer":
-            col[y] = BACKGROUND if 0 < y < h - 1 else (0, 0, 0, 0)
-        elif kind == "frame":
-            col[y] = BACKGROUND if y in (0, h - 1) else border
-        else:  # inside
-            if y in (0, h - 1):
-                col[y] = BACKGROUND
-            elif y == 1:
-                col[y] = BORDER_TOP
-            elif y == h - 2:
-                col[y] = BORDER_BOTTOM
-            else:
-                col[y] = BACKGROUND
-    return col
+def box_column():
+    """One column of the box: the header band, a red rule under it, the body."""
+    column = []
+    for y in range(BOX_HEIGHT):
+        if y < HEADER_HEIGHT:
+            column.append(HEADER)
+        elif y == HEADER_HEIGHT:
+            column.append(ACCENT)
+        else:
+            column.append(BODY)
+    return column
 
 
-def strip(columns):
-    image = Image.new("RGBA", (len(columns), BOX_HEIGHT))
-    for x, column in enumerate(columns):
-        for y, pixel in enumerate(column):
+def strip(width):
+    image = Image.new("RGBA", (width, BOX_HEIGHT))
+    for x in range(width):
+        for y, pixel in enumerate(box_column()):
             image.putpixel((x, y), pixel)
     return image
 
 
 def build_box_font():
-    save(strip([box_column("outer"), box_column("frame")]), "assets", "toque", "textures", "font", "box_left.png")
-    save(strip([box_column("frame"), box_column("outer")]), "assets", "toque", "textures", "font", "box_right.png")
+    # The edges are kept as their own glyphs so the shape can change without the
+    # server's arithmetic changing; today they are plain strips like the fill.
+    save(strip(2), "assets", "toque", "textures", "font", "box_left.png")
+    save(strip(2), "assets", "toque", "textures", "font", "box_right.png")
     providers = [
         {"type": "bitmap", "file": "toque:font/box_left.png", "ascent": 7 - BOX_TOP,
          "height": BOX_HEIGHT, "chars": [chr(BOX_LEFT)]},
@@ -143,7 +138,7 @@ def build_box_font():
     ]
     for k in range(8):
         width = 1 << k
-        save(strip([box_column("inside")] * width), "assets", "toque", "textures", "font", f"box_fill_{width}.png")
+        save(strip(width), "assets", "toque", "textures", "font", f"box_fill_{width}.png")
         providers.append({"type": "bitmap", "file": f"toque:font/box_fill_{width}.png",
                           "ascent": 7 - BOX_TOP, "height": BOX_HEIGHT, "chars": [chr(BOX_FILL + k)]})
     providers.append(pen_moves())
@@ -159,7 +154,7 @@ def pen_moves():
     return {"type": "space", "advances": advances}
 
 
-# --- Hearts ----------------------------------------------------------------------
+# --- Hearts and lines ----------------------------------------------------------------------
 
 HEART_SHAPE = [
     ".KKK.KKK.",
@@ -208,22 +203,27 @@ def build_line_fonts(default_providers):
 
     # The pen moves are here too: the row of hearts steps back between hearts
     # without leaving this font.
-    hearts = shifted_default_providers(default_providers, COUNT_TOP) + [pen_moves()]
+    hearts = [pen_moves()]
     for char, name in ((HEART_FULL, "full"), (HEART_HALF, "half"), (HEART_EMPTY, "empty")):
         hearts.append({"type": "bitmap", "file": f"toque:font/heart_{name}.png",
                        "ascent": 7 - HEART_TOP, "height": 9, "chars": [chr(char)]})
     write_json({"providers": hearts}, PACK, "assets", "toque", "font", "hud_hearts.json")
     write_json({"providers": shifted_default_providers(default_providers, NAME_TOP)},
                PACK, "assets", "toque", "font", "hud_name.json")
-    write_json({"providers": shifted_default_providers(default_providers, MOD_TOP)},
-               PACK, "assets", "toque", "font", "hud_mod.json")
+    # The side panel's "▪" comes from unifont, which cannot be moved down a line,
+    # so the info line draws a square of its own; the text colour tints it.
+    save(Image.new("RGBA", (3, 3), (255, 255, 255, 255)), "assets", "toque", "textures", "font", "bullet.png")
+    info = shifted_default_providers(default_providers, INFO_TOP)
+    info.append({"type": "bitmap", "file": "toque:font/bullet.png",
+                 "ascent": 7 - BULLET_TOP, "height": 3, "chars": [chr(BULLET)]})
+    write_json({"providers": info}, PACK, "assets", "toque", "font", "hud_info.json")
 
 
 # --- Data for the server ---------------------------------------------------------
 
 def glyph_widths(jar, default_providers):
     """Advance of every default-font character, with the client's own formula."""
-    widths = {" ": 4}
+    widths = {" ": 4, chr(BULLET): 4}
     for provider in default_providers:
         namespace, path = provider["file"].split(":")
         with jar.open(f"assets/{namespace}/textures/{path}") as stream:

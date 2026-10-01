@@ -2,9 +2,8 @@ package com.josuebrenes.toquedeathalert.hud;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.josuebrenes.toquedeathalert.core.Gradient;
 import com.josuebrenes.toquedeathalert.core.ToqueLog;
-import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.MutableText;
@@ -23,6 +22,9 @@ import java.util.Map;
 /**
  * The box naming a target, built as a single line of text.
  *
+ * <p>It is dressed like the side panel, which is the vanilla scoreboard: a dark
+ * band with the name in the TOQUE red gradient, then the lines below it.
+ *
  * <p>A boss bar title is one line, but the resource pack gives it fonts that draw
  * lower down: the box itself, the hearts, and copies of the default font shifted
  * to a second and third line. Each piece is drawn, and the pen is then walked
@@ -39,7 +41,7 @@ final class TargetPanel {
     private static final Identifier BOX_FONT = Identifier.of("toque", "hud_box");
     private static final Identifier NAME_FONT = Identifier.of("toque", "hud_name");
     private static final Identifier HEART_FONT = Identifier.of("toque", "hud_hearts");
-    private static final Identifier MOD_FONT = Identifier.of("toque", "hud_mod");
+    private static final Identifier INFO_FONT = Identifier.of("toque", "hud_info");
 
     private static final char BOX_LEFT = '';
     private static final char BOX_RIGHT = '';
@@ -48,6 +50,7 @@ final class TargetPanel {
     private static final char HEART_FULL = '';
     private static final char HEART_HALF = '';
     private static final char HEART_EMPTY = '';
+    private static final char BULLET = '';
     private static final char SPACE_BACK = '';
     private static final char SPACE_FORWARD = '';
     private static final int SPACE_MAX_POWER = 9;
@@ -59,10 +62,9 @@ final class TargetPanel {
     /** Hearts overlap by a pixel, as in the vanilla health bar. */
     private static final int HEART_STEP = 8;
     private static final int HEART_WIDTH = 9;
-    /** Past this many the row would be wider than the screen allows; a count is shown. */
+    /** Past this many the row would run too wide; ten hearts then stand for the whole bar. */
     private static final int MAX_DRAWN_HEARTS = 15;
-
-    private static final int MOD_NAME_COLOR = 0x5555FF;
+    private static final int SCALED_HEARTS = 10;
     private static final int FALLBACK_ADVANCE = 6;
 
     private static final Map<Character, Integer> WIDTHS = new HashMap<>();
@@ -86,41 +88,49 @@ final class TargetPanel {
 
     static Text render(LivingEntity target) {
         String name = name(target);
-        String modName = modName(target);
 
         int hp = MathHelper.ceil(Math.max(0.0F, target.getHealth()));
         int max = MathHelper.ceil(Math.max(1.0F, target.getMaxHealth()));
         int slots = MathHelper.ceil(max / 2.0F);
-        boolean compact = slots > MAX_DRAWN_HEARTS;
-        String count = " " + hp + " / " + max;
+        int halves = hp;
+        if (slots > MAX_DRAWN_HEARTS) {
+            // A Wither in hearts would cross the screen; ten scaled hearts read the
+            // same at a glance, and the line below carries the exact numbers.
+            slots = SCALED_HEARTS;
+            halves = Math.round((float) hp / max * SCALED_HEARTS * 2);
+            if (halves == 0 && hp > 0) {
+                halves = 1;
+            }
+        }
 
-        int heartsWidth = compact
-                ? HEART_ADVANCE + width(count)
-                : (slots - 1) * HEART_STEP + HEART_WIDTH;
-        int content = Math.max(heartsWidth, Math.max(width(name), width(modName)));
+        String label = "Vida: ";
+        String value = hp + " / " + max;
+        // Bold draws every glyph a pixel wider.
+        int nameWidth = width(name) + name.length();
+        int heartsWidth = (slots - 1) * HEART_STEP + HEART_WIDTH;
+        int infoWidth = width(BULLET + " " + label + value);
+        int content = Math.max(heartsWidth, Math.max(nameWidth, infoWidth));
         int boxWidth = content + PADDING * 2;
 
         MutableText panel = Text.empty();
         box(panel, boxWidth);
-        panel.append(space(-(boxWidth - PADDING)));
 
-        panel.append(Text.literal(name).setStyle(Style.EMPTY.withFont(NAME_FONT)
+        int nameLeft = PADDING + (content - nameWidth) / 2;
+        panel.append(space(-(boxWidth - nameLeft)));
+        panel.append(Text.empty().setStyle(Style.EMPTY.withFont(NAME_FONT))
+                .append(Gradient.apply(name, Gradient.RED_FROM, Gradient.RED_TO, true)));
+        panel.append(space(-(nameLeft + nameWidth - PADDING)));
+
+        hearts(panel, halves, slots);
+        panel.append(space(-slots * HEART_STEP));
+
+        panel.append(Text.literal(BULLET + " ").setStyle(Style.EMPTY.withFont(INFO_FONT)
+                .withColor(Formatting.GRAY)));
+        panel.append(Text.literal(label).setStyle(Style.EMPTY.withFont(INFO_FONT)
                 .withColor(Formatting.WHITE)));
-        panel.append(space(-width(name)));
-
-        if (compact) {
-            panel.append(glyph(String.valueOf(HEART_FULL), HEART_FONT));
-            panel.append(Text.literal(count).setStyle(Style.EMPTY.withFont(HEART_FONT)
-                    .withColor(Formatting.WHITE)));
-            panel.append(space(-(HEART_ADVANCE + width(count))));
-        } else {
-            hearts(panel, hp, slots);
-            panel.append(space(-slots * HEART_STEP));
-        }
-
-        panel.append(Text.literal(modName).setStyle(Style.EMPTY.withFont(MOD_FONT)
-                .withColor(MOD_NAME_COLOR).withItalic(true)));
-        panel.append(space(boxWidth - PADDING - width(modName)));
+        panel.append(Text.literal(value).setStyle(Style.EMPTY.withFont(INFO_FONT)
+                .withColor(Formatting.RED)));
+        panel.append(space(boxWidth - PADDING - infoWidth));
         return panel;
     }
 
@@ -143,7 +153,7 @@ final class TargetPanel {
         panel.append(glyph(glyphs.toString(), BOX_FONT));
     }
 
-    /** One heart per 2 HP, as vanilla draws the player's own. */
+    /** One heart per two halves, as vanilla draws the player's own. */
     private static void hearts(MutableText panel, int hp, int slots) {
         StringBuilder row = new StringBuilder();
         for (int i = 0; i < slots; i++) {
@@ -210,14 +220,6 @@ final class TargetPanel {
         }
         String spanish = SPANISH_NAMES.get(target.getType().getTranslationKey());
         return spanish != null ? spanish : target.getName().getString();
-    }
-
-    /** "Minecraft" for vanilla mobs, otherwise the name of the mod that adds it. */
-    private static String modName(LivingEntity target) {
-        String namespace = EntityType.getId(target.getType()).getNamespace();
-        return FabricLoader.getInstance().getModContainer(namespace)
-                .map(mod -> mod.getMetadata().getName())
-                .orElse(namespace);
     }
 
     private static JsonObject load(String file) {

@@ -7,7 +7,7 @@
     {
       "type": "bitmap",
       "file": "minecraft:font/nonlatin_european.png",
-      "ascent": 1,
+      "ascent": 3,
       "chars": [
         "¡‰­·₴≠¿×ØÞһðøþΑΒ",
         "ΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣ",
@@ -82,7 +82,7 @@
       "type": "bitmap",
       "file": "minecraft:font/accented.png",
       "height": 12,
-      "ascent": 4,
+      "ascent": 6,
       "chars": [
         "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ",
         "ÐÑÒÓÔÕÖÙÚÛÜÝàáâã",
@@ -164,7 +164,7 @@
     {
       "type": "bitmap",
       "file": "minecraft:font/ascii.png",
-      "ascent": 1,
+      "ascent": 3,
       "chars": [
         "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
         "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
