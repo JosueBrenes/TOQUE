@@ -1,0 +1,10 @@
+{
+  "death": {
+    "sounds": [
+      {
+        "name": "toque:death",
+        "stream": true
+      }
+    ]
+  }
+}

@@ -107,13 +107,14 @@ name can change.
 
 ## Resource pack
 
-[`resourcepack/`](resourcepack) holds the pack carrying the `toque:death` sound. The
+[`resourcepack/`](resourcepack) holds the pack carrying the `toque:death` sound and the
+fonts the target panel is drawn with. The
 server pushes it to players automatically, serving it from this repository by raw URL
 and pinning it by hash in `server.properties`:
 
 ```properties
 resource-pack=https://raw.githubusercontent.com/JosueBrenes/TOQUE/main/resourcepack/TOQUE_Death_ResourcePack.zip
-resource-pack-sha1=7b57fb56c92e528a81e001797febf04b72c2a8cc
+resource-pack-sha1=ab893b5d91e61a63fe360c3c758df3077ee88d84
 ```
 
 Both lines are coupled to the file: its path decides the URL and its contents decide

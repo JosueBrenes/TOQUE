@@ -1,0 +1,119 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "toque:font/box_left.png",
+      "ascent": 5,
+      "height": 37,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "toque:font/box_right.png",
+      "ascent": 5,
+      "height": 37,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "toque:font/box_fill_1.png",
+      "ascent": 5,
+      "height": 37,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "toque:font/box_fill_2.png",
+      "ascent": 5,
+      "height": 37,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "toque:font/box_fill_4.png",
+      "ascent": 5,
+      "height": 37,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "toque:font/box_fill_8.png",
+      "ascent": 5,
+      "height": 37,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "toque:font/box_fill_16.png",
+      "ascent": 5,
+      "height": 37,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "toque:font/box_fill_32.png",
+      "ascent": 5,
+      "height": 37,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "toque:font/box_fill_64.png",
+      "ascent": 5,
+      "height": 37,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "toque:font/box_fill_128.png",
+      "ascent": 5,
+      "height": 37,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "space",
+      "advances": {
+        "": -1,
+        "": 1,
+        "": -2,
+        "": 2,
+        "": -4,
+        "": 4,
+        "": -8,
+        "": 8,
+        "": -16,
+        "": 16,
+        "": -32,
+        "": 32,
+        "": -64,
+        "": 64,
+        "": -128,
+        "": 128,
+        "": -256,
+        "": 256,
+        "": -512,
+        "": 512
+      }
+    }
+  ]
+}

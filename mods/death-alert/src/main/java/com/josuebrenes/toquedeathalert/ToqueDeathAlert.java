@@ -6,6 +6,7 @@ import com.josuebrenes.toquedeathalert.core.ToqueRuntime;
 import com.josuebrenes.toquedeathalert.death.DeathAnnouncer;
 import com.josuebrenes.toquedeathalert.death.DeathListener;
 import com.josuebrenes.toquedeathalert.hud.SidebarHud;
+import com.josuebrenes.toquedeathalert.hud.TargetHealthHud;
 import com.josuebrenes.toquedeathalert.migration.VanillaDeathsImporter;
 import com.josuebrenes.toquedeathalert.nametag.RoleNametags;
 import com.josuebrenes.toquedeathalert.migration.VanillaDeathsLookup;
@@ -85,11 +86,12 @@ public final class ToqueDeathAlert implements ModInitializer {
         TryWatcher tryWatcher = new TryWatcher(stats);
         SidebarHud hud = new SidebarHud(stats);
         RoleNametags nametags = new RoleNametags(stats);
+        TargetHealthHud targetHud = new TargetHealthHud();
 
         ToqueLog.info("Stats loaded from {} (series #{}, vanilla import {}).",
                 stats.file(), stats.seriesNumber(),
                 stats.isVanillaImportOpen() ? "open" : "closed");
-        return new ToqueRuntime.Services(stats, tabList, importer, tryWatcher, hud, nametags);
+        return new ToqueRuntime.Services(stats, tabList, importer, tryWatcher, hud, nametags, targetHud);
     }
 
     private void registerConnection() {
@@ -127,10 +129,11 @@ public final class ToqueDeathAlert implements ModInitializer {
             services.tabList().sendHeaderAndFooter(server);
             services.hud().forget(uuid);
             services.nametags().forget(uuid);
+            services.targetHud().forget(uuid);
         });
     }
 
-    /** Puts the sidebar and the rank teams back on one player's client. */
+    /** Puts the sidebar, the rank teams and the target bar back on one player's client. */
     private static void reinstallOverlays(MinecraftServer server, ServerPlayerEntity player) {
         ToqueRuntime.Services services = RUNTIME.services();
         if (services == null) {
@@ -138,6 +141,9 @@ public final class ToqueDeathAlert implements ModInitializer {
         }
         services.hud().install(server, player);
         services.nametags().install(server, player);
+        // The bar is dropped and added again on the next check, rather than trusted
+        // to have survived the client's move to another world.
+        services.targetHud().forget(player.getUuid());
     }
 
     private void registerCommands() {
@@ -156,6 +162,7 @@ public final class ToqueDeathAlert implements ModInitializer {
             services.tabList().onServerTick(server);
             services.hud().onServerTick(server);
             services.nametags().refresh(server);
+            services.targetHud().onServerTick(server);
         });
     }
 }

@@ -1,6 +1,7 @@
 package com.josuebrenes.toquedeathalert.core;
 
 import com.josuebrenes.toquedeathalert.hud.SidebarHud;
+import com.josuebrenes.toquedeathalert.hud.TargetHealthHud;
 import com.josuebrenes.toquedeathalert.migration.VanillaDeathsImporter;
 import com.josuebrenes.toquedeathalert.nametag.RoleNametags;
 import com.josuebrenes.toquedeathalert.series.SeriesStatsRepository;
@@ -24,7 +25,8 @@ public final class ToqueRuntime {
                            VanillaDeathsImporter importer,
                            TryWatcher tryWatcher,
                            SidebarHud hud,
-                           RoleNametags nametags) {
+                           RoleNametags nametags,
+                           TargetHealthHud targetHud) {
     }
 
     public void bind(Services services) {
@@ -74,5 +76,11 @@ public final class ToqueRuntime {
     public RoleNametags nametags() {
         Services current = services;
         return current == null ? null : current.nametags();
+    }
+
+    @Nullable
+    public TargetHealthHud targetHud() {
+        Services current = services;
+        return current == null ? null : current.targetHud();
     }
 }
