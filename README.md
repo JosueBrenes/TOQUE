@@ -12,13 +12,14 @@
 
 > One death wipes the world. The counters do not.
 
-Two Fabric mods for the **TOQUE Hardcore** series: a Minecraft run where a single
+Three Fabric mods for the **TOQUE Hardcore** series: a Minecraft run where a single
 death erases the world and starts the next Try, while every player's death count
 carries on across the whole series.
 
 | | |
 |---|---|
 | **[`mods/death-alert`](mods/death-alert)** | Server side. Death alerts, the series death counters, the player list, the ranks and the server list MOTD. Players install nothing. |
+| **[`mods/mob-spawner`](mods/mob-spawner)** | Server side. Extra mob spawns inside coordinate zones, or inside a room. Players install nothing. |
 | **[`mods/server-banner`](mods/server-banner)** | Client side. Replaces the TOQUE entry in the multiplayer screen with a custom banner. Optional, for players who want it. |
 
 ---
@@ -27,13 +28,14 @@ carries on across the whole series.
 
 ```
 .
-├── .github/workflows/build.yml   CI: builds both mods, uploads both jars
+├── .github/workflows/build.yml   CI: builds every mod, uploads the jars
 ├── gradle/wrapper/               Pinned Gradle, so no one installs one
 ├── build.gradle                  Shared build logic for every module
 ├── settings.gradle               Which modules exist and where they live
 ├── gradle.properties             Platform and version numbers, in one place
 ├── mods/
 │   ├── death-alert/              Server mod
+│   ├── mob-spawner/              Server mod: zone spawns
 │   └── server-banner/            Client mod
 └── resourcepack/                 Pushed to players by the server (see below)
 ```
@@ -49,8 +51,9 @@ from the root, so the two mods cannot drift apart.
 Nothing to install but a JDK 21: the Gradle wrapper handles the rest.
 
 ```bash
-./gradlew build            # both mods
+./gradlew build            # every mod
 ./gradlew :death-alert:build
+./gradlew :mob-spawner:build
 ./gradlew :server-banner:build
 ```
 
@@ -58,17 +61,18 @@ The jars land in:
 
 ```
 mods/death-alert/build/libs/toque-death-alert-1.0.0.jar
+mods/mob-spawner/build/libs/toque-mob-spawner-1.0.0.jar
 mods/server-banner/build/libs/toque-server-banner-1.0.0.jar
 ```
 
-Every push to `main` builds both and attaches them to the run, under the **Actions**
+Every push to `main` builds them all and attaches them to the run, under the **Actions**
 tab.
 
 ---
 
 ## Installing
 
-**Server** — drop `toque-death-alert-1.0.0.jar` into the server's `mods/`, alongside
+**Server** — drop `toque-death-alert-1.0.0.jar` and `toque-mob-spawner-1.0.0.jar` into the server's `mods/`, alongside
 Fabric API and Hardcore World Reset. Restart.
 
 **Client** — optional. `toque-server-banner-1.0.0.jar` goes in a player's own `mods/`
@@ -91,6 +95,17 @@ Server side, from `death-alert`.
 | `/toque set <player> <n>` | OP | Overrides one player's deaths |
 | `/toque import <player>` | OP | Re-imports from the vanilla statistic |
 | `/toque resetDeaths` | OP | Starts a new series: every counter to zero |
+
+Server side, from `mob-spawner`; all OP. See [its README](mods/mob-spawner) for the
+config file.
+
+| Command | What it does |
+|---|---|
+| `/toquemobs create <name> <from> <to> [multiplier]` | Makes a room a spawn zone; mobs appear inside it |
+| `/toquemobs delete <zone>` | Removes a zone |
+| `/toquemobs reload` | Re-reads `config/toque-mob-spawner.json` |
+| `/toquemobs status` · `zones` · `info <zone>` | What is running, and where |
+| `/toquemobs enable` · `disable` | Master switch, saved to the file |
 
 ---
 

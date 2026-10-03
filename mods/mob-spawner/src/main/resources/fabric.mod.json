@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "toque-mob-spawner",
+  "version": "${version}",
+  "name": "Toque Mob Spawner",
+  "description": "Extra mob spawns inside coordinate zones, configured in config/toque-mob-spawner.json.",
+  "authors": ["JosueBrenes"],
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.josuebrenes.toquemobspawner.ToqueMobSpawner"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "fabric-api": ">=0.116.17",
+    "minecraft": "1.21.1"
+  }
+}

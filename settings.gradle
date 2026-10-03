@@ -13,6 +13,8 @@ rootProject.name = "toque"
 // make Gradle invent an empty :mods project in between and build a jar for it.
 include("death-alert")
 include("server-banner")
+include("mob-spawner")
 
 project(":death-alert").projectDir = file("mods/death-alert")
 project(":server-banner").projectDir = file("mods/server-banner")
+project(":mob-spawner").projectDir = file("mods/mob-spawner")

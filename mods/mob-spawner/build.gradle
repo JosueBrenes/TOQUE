@@ -1,0 +1,4 @@
+// Server-side mod. Everything else comes from the root build.
+base {
+    archivesName = "toque-mob-spawner"
+}

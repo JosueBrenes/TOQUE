@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build both mods
+    name: Build every mod
     runs-on: ubuntu-latest
 
     steps:
@@ -34,8 +34,14 @@ jobs:
           name: toque-death-alert
           path: mods/death-alert/build/libs/toque-death-alert-*[0-9].jar
 
-      - name: Upload client mod
+      - name: Upload banner mod
         uses: actions/upload-artifact@v4
         with:
           name: toque-server-banner
           path: mods/server-banner/build/libs/toque-server-banner-*[0-9].jar
+
+      - name: Upload mob spawner mod
+        uses: actions/upload-artifact@v4
+        with:
+          name: toque-mob-spawner
+          path: mods/mob-spawner/build/libs/toque-mob-spawner-*[0-9].jar
