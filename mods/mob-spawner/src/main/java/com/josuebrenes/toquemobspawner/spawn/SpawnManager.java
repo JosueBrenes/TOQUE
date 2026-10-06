@@ -105,8 +105,7 @@ public final class SpawnManager {
             if (player.isSpectator() || !player.isAlive()) {
                 continue;
             }
-            Zone zone = settings.zoneAt(world.getRegistryKey(),
-                    player.getBlockX(), player.getBlockY(), player.getBlockZ());
+            Zone zone = settings.zoneFor(world.getRegistryKey(), player.getX(), player.getY(), player.getZ());
             if (zone == null || !zone.isActive()) {
                 continue;
             }
@@ -159,8 +158,8 @@ public final class SpawnManager {
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             UUID id = player.getUuid();
             online.add(id);
-            Zone zone = settings.zoneAt(player.getWorld().getRegistryKey(),
-                    player.getBlockX(), player.getBlockY(), player.getBlockZ());
+            Zone zone = settings.zoneFor(player.getWorld().getRegistryKey(),
+                    player.getX(), player.getY(), player.getZ());
             String now = zone == null ? null : zone.name();
             String before = playerZones.get(id);
             if (now != null && !now.equals(before)) {

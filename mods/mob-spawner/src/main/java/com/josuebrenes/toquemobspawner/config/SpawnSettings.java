@@ -1,6 +1,7 @@
 package com.josuebrenes.toquemobspawner.config;
 
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
@@ -37,6 +38,24 @@ public record SpawnSettings(boolean enabled,
     public Zone zoneAt(RegistryKey<World> world, int x, int y, int z) {
         for (Zone zone : zones) {
             if (zone.enabled() && zone.contains(world, x, y, z)) {
+                return zone;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The zone acting on a player here: the one they stand in, else a box zone
+     * whose activation distance reaches them.
+     */
+    @Nullable
+    public Zone zoneFor(RegistryKey<World> world, double x, double y, double z) {
+        Zone inside = zoneAt(world, MathHelper.floor(x), MathHelper.floor(y), MathHelper.floor(z));
+        if (inside != null) {
+            return inside;
+        }
+        for (Zone zone : zones) {
+            if (zone.enabled() && zone.isNear(world, x, y, z)) {
                 return zone;
             }
         }

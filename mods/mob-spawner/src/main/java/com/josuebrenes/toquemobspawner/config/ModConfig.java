@@ -63,6 +63,18 @@ public final class ModConfig {
         public Integer minPlayerDistance;
         /** Optional. Mobs spawned per check, per player or per filled box. */
         public Integer spawnsPerCheck;
+        /**
+         * Box zones only. Mobs appear in mid-air anywhere in the box and fall,
+         * for a drop shaft. No ground is needed under them.
+         */
+        public boolean spawnInAir;
+        /** Box zones only. Hostiles appear even where it is lit. */
+        public boolean ignoreLight;
+        /**
+         * Box zones only. Also active while a player is within this many blocks of
+         * the box, not only inside it: for a shaft the player waits beneath.
+         */
+        public Integer activationDistance;
         public double spawnMultiplier = 1.0;
         public int maxExtraMobs = 40;
         public List<String> mobs = new ArrayList<>();

@@ -269,6 +269,12 @@ public final class ConfigManager {
                 1, 96, warnings);
         int spawnsPerCheck = clamp(where + "spawnsPerCheck",
                 raw.spawnsPerCheck != null ? raw.spawnsPerCheck : globalSpawnsPerCheck, 1, 32, warnings);
+        if (!inside && (raw.spawnInAir || raw.ignoreLight || raw.activationDistance != null)) {
+            warnings.add(where + "spawnInAir, ignoreLight and activationDistance only apply with spawnInside; ignored.");
+        }
+        int activationDistance = inside && raw.activationDistance != null
+                ? clamp(where + "activationDistance", raw.activationDistance, 0, 128, warnings)
+                : 0;
 
         double multiplier = raw.spawnMultiplier;
         if (!Double.isFinite(multiplier) || multiplier < 1.0) {
@@ -300,6 +306,7 @@ public final class ConfigManager {
                 Math.min(raw.xMin, raw.xMax), Math.max(raw.xMin, raw.xMax),
                 Math.min(raw.zMin, raw.zMax), Math.max(raw.zMin, raw.zMax),
                 yMin, yMax, inside, minPlayerDistance, spawnsPerCheck,
+                inside && raw.spawnInAir, inside && raw.ignoreLight, activationDistance,
                 multiplier, maxExtra, target, List.copyOf(mobs), List.copyOf(invalid));
     }
 

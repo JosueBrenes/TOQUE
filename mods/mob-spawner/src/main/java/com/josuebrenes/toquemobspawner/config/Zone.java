@@ -14,6 +14,9 @@ import java.util.List;
  *                          or in the whole box when {@code spawnInside}
  * @param minPlayerDistance closest an extra mob may appear to any player
  * @param spawnsPerCheck    mobs spawned per check, per player or per box
+ * @param spawnInAir        box zones: mobs appear in mid-air and fall
+ * @param ignoreLight       box zones: hostiles appear even where it is lit
+ * @param activationDistance box zones: also active with a player this close to the box; 0 means inside only
  * @param invalidMobs       configured identifiers that did not resolve, kept for /toquemobs info
  */
 public record Zone(String name,
@@ -25,6 +28,9 @@ public record Zone(String name,
                    boolean spawnInside,
                    int minPlayerDistance,
                    int spawnsPerCheck,
+                   boolean spawnInAir,
+                   boolean ignoreLight,
+                   int activationDistance,
                    double spawnMultiplier,
                    int maxExtraMobs,
                    int targetPerPlayer,
@@ -41,6 +47,17 @@ public record Zone(String name,
                 && x >= xMin && x <= xMax
                 && y >= yMin && y <= yMax
                 && z >= zMin && z <= zMax;
+    }
+
+    /** Whether a player here keeps a box zone active from outside it. */
+    public boolean isNear(RegistryKey<World> world, double x, double y, double z) {
+        if (!spawnInside || activationDistance <= 0 || !dimension.equals(world)) {
+            return false;
+        }
+        double dx = Math.max(Math.max(xMin - x, 0), x - (xMax + 1));
+        double dy = Math.max(Math.max(yMin - y, 0), y - (yMax + 1));
+        double dz = Math.max(Math.max(zMin - z, 0), z - (zMax + 1));
+        return dx * dx + dy * dy + dz * dz <= (double) activationDistance * activationDistance;
     }
 
     public boolean hasHeightLimits() {

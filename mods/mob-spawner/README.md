@@ -15,6 +15,11 @@ Built from the repository root: `./gradlew :mob-spawner:build`, which produces
 - **Inside the box** (`"spawnInside": true`, needs `yMin` and `yMax`). While a
   player is inside the box, extra mobs appear anywhere inside it: a room, an arena,
   a pit. `/toquemobs create` makes this kind from two corners.
+- **Drop shaft** (a box zone with `"spawnInAir": true`). Mobs appear in mid-air
+  anywhere in the box and fall. They need no ground, and their registered spawn
+  rule (which wants ground) is skipped. Hostiles still need darkness unless
+  `"ignoreLight": true`. Add `"activationDistance"` so the shaft runs while a
+  player is that close to it, not only inside it.
 
 ## How many
 
@@ -91,6 +96,9 @@ Per zone:
 | `spawnInside` | `false` | Spawn inside the box rather than around the player |
 | `minPlayerDistance` | 24, or 4 inside a box | |
 | `spawnsPerCheck` | global default | |
+| `spawnInAir` | `false` | Box zones: spawn in mid-air and fall |
+| `ignoreLight` | `false` | Box zones: hostiles appear even where it is lit |
+| `activationDistance` | 0 | Box zones: also active with a player this close to the box (max 128) |
 | `spawnMultiplier` | 1.0 | 1 to 50 |
 | `maxExtraMobs` | 40 | Cap for this zone |
 | `mobs` | | Entity identifiers, vanilla or modded: `"minecraft:zombie"`, `"othermod:monster"` |

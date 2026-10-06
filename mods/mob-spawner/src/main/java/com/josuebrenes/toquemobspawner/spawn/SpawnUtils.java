@@ -24,7 +24,10 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>A zone either spawns around the player, in a ring between the minimum and
  * maximum spawn distance, or, with {@code spawnInside}, anywhere inside its own
- * box: a room, an arena, a pit.
+ * box: a room, an arena, a pit. A box with {@code spawnInAir} puts mobs in
+ * mid-air to fall, as in a drop shaft: the mob's ground rule and its registered
+ * spawn predicate (which also wants ground) are skipped, and darkness is checked
+ * directly unless {@code ignoreLight} is set.
  *
  * <p>The work is bounded: at most {@code maxSpawnAttempts} random columns, and in
  * each only {@link #VERTICAL_SCAN} blocks are looked at. Nothing ever sweeps an
@@ -71,7 +74,9 @@ public final class SpawnUtils {
             }
             mob.refreshPositionAndAngles(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5,
                     random.nextFloat() * 360.0F, 0.0F);
-            if (!mob.canSpawn(world, SpawnReason.NATURAL) || !mob.canSpawn(world)) {
+            // canSpawn(world, reason) weighs the ground under the mob, which a
+            // mob placed in mid-air does not have.
+            if ((!zone.spawnInAir() && !mob.canSpawn(world, SpawnReason.NATURAL)) || !mob.canSpawn(world)) {
                 continue;
             }
             mob.initialize(world, world.getLocalDifficulty(pos), SpawnReason.NATURAL, null);
@@ -117,6 +122,10 @@ public final class SpawnUtils {
         if (!world.shouldTickEntity(cursor) || !world.getWorldBorder().contains(cursor)) {
             return null;
         }
+        if (zone.spawnInAir()) {
+            BlockPos pos = cursor.toImmutable();
+            return isValidInAir(world, pos, zone, type, random) ? pos : null;
+        }
 
         SpawnLocation location = SpawnRestriction.getLocation(type);
         // A mob nobody registered a placement rule for would otherwise be allowed
@@ -133,6 +142,21 @@ public final class SpawnUtils {
         return null;
     }
 
+    private static boolean isValidInAir(ServerWorld world, BlockPos pos, Zone zone, EntityType<?> type,
+                                        Random random) {
+        double x = pos.getX() + 0.5;
+        double z = pos.getZ() + 0.5;
+        if (world.isPlayerInRange(x, pos.getY(), z, zone.minPlayerDistance())) {
+            return false;
+        }
+        if (!world.getFluidState(pos).isEmpty() || !world.isSpaceEmpty(type.getSpawnBox(x, pos.getY(), z))) {
+            return false;
+        }
+        return zone.ignoreLight()
+                || type.getSpawnGroup() != SpawnGroup.MONSTER
+                || HostileEntity.isSpawnDark(world, pos, random);
+    }
+
     private static boolean isValid(ServerWorld world, BlockPos pos, Zone zone, EntityType<?> type,
                                    SpawnLocation location, Random random) {
         double x = pos.getX() + 0.5;
@@ -142,6 +166,9 @@ public final class SpawnUtils {
         }
         if (!world.isSpaceEmpty(type.getSpawnBox(x, pos.getY(), z))) {
             return false;
+        }
+        if (zone.ignoreLight() && zone.spawnInside()) {
+            return true;
         }
         if (!SpawnRestriction.canSpawn(type, world, SpawnReason.NATURAL, pos, random)) {
             return false;

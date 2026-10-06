@@ -157,11 +157,19 @@ public final class ToqueMobCommands {
         send(source, line("Activa", value(zone.enabled() ? "sí" : "no")));
         send(source, line("Dimensión", value(zone.dimension().getValue().toString())));
         send(source, line("Coordenadas", value(bounds(zone))));
-        send(source, line("Aparecen", value(zone.spawnInside()
+        send(source, line("Aparecen", value(zone.spawnInAir()
+                ? "en el aire dentro de la zona, y caen"
+                : zone.spawnInside()
                 ? "dentro de la zona"
                 : "alrededor del jugador")));
         send(source, line("Distancia mínima al jugador", value(zone.minPlayerDistance() + " bloques")));
         send(source, line("Por revisión", value(zone.spawnsPerCheck() + " mobs")));
+        if (zone.activationDistance() > 0) {
+            send(source, line("Se activa", value("con un jugador a " + zone.activationDistance() + " bloques o menos")));
+        }
+        if (zone.ignoreLight()) {
+            send(source, line("Luz", value("ignorada")));
+        }
         send(source, line("Multiplicador", value(zone.spawnMultiplier() + "x")));
         send(source, line(zone.spawnInside() ? "Objetivo en la zona" : "Extra por jugador",
                 value(Integer.toString(zone.targetPerPlayer()))));
