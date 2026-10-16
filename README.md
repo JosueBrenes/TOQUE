@@ -10,11 +10,11 @@
 ![Java 25](https://img.shields.io/badge/Java-25-E76F00?logo=openjdk&logoColor=white)
 ![Gradle 9.7.1](https://img.shields.io/badge/Gradle-9.7.1-02303A?logo=gradle&logoColor=white)
 
-> One death wipes the world. The counters do not.
+> Die, respawn, go get your things. The counters remember.
 
-Three Fabric mods for the **TOQUE Hardcore** series: a Minecraft run where a single
-death erases the world and starts the next Try, while every player's death count
-carries on across the whole series.
+Three Fabric mods for the **TOQUE Hardcore** series: a hardcore survival server
+where a death is not the end: the player respawns and goes back for their things,
+while every player's death count carries on across the whole series.
 
 | | |
 |---|---|

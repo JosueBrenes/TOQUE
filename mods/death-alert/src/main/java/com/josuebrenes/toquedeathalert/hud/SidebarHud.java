@@ -120,7 +120,6 @@ public final class SidebarHud {
                 .withStyle(ChatFormatting.AQUA)));
         lines.add(entry("Mundo", Component.literal(dimension(player)).withStyle(ChatFormatting.GREEN)));
         lines.add(blank());
-        lines.add(entry("Try", Component.literal("#" + stats.tryNumber()).withStyle(ChatFormatting.GOLD)));
         lines.add(entry("Día", Component.literal(Long.toString(currentDay(server)))
                 .withStyle(ChatFormatting.YELLOW)));
         lines.add(entry("Objetivo", Component.literal(stats.objective()).withStyle(ChatFormatting.GOLD)));

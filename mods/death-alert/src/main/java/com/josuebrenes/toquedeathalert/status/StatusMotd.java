@@ -24,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
  * lines are measured in pixels rather than characters, because the font is
  * proportional and counting characters would leave them visibly off centre.
  *
- * <p>Rebuilt on every ping, so the Try, the day and the death count are current
+ * <p>Rebuilt on every ping, so the day and the death count are current
  * each time a player refreshes their list.
  */
 public final class StatusMotd {
@@ -32,16 +32,15 @@ public final class StatusMotd {
     private static final int MOTD_WIDTH_PX = 271;
 
     private static final String SKULL = "☠";
-    private static final String ARROW = "»";
 
     private static final long TICKS_PER_DAY = 24000L;
     private static final long TAGLINE_MILLIS = 4000L;
 
     private static final String[] TAGLINES = {
-            "UNA VIDA, UNA RUN",
-            "SOBREVIVE O REINICIA",
-            "¿CUÁNTO DURARÁS?",
-            "TODOS O NINGUNO"
+            "SOBREVIVE, EXPLORA, CONSTRUYE",
+            "CADA NOCHE CUENTA",
+            "¿CUÁNTO AGUANTARÁS?",
+            "MUERE Y VE POR TUS COSAS"
     };
 
     private StatusMotd() {
@@ -68,14 +67,13 @@ public final class StatusMotd {
      * nothing else fitted beside it.
      */
     private static String titleLine(MinecraftServer server, SeriesStatsRepository stats) {
-        StringBuilder line = new StringBuilder(SKULL + " TOQUE HARDCORE [TRY #")
-                .append(stats.tryNumber());
+        StringBuilder line = new StringBuilder(SKULL + " TOQUE HARDCORE");
 
         long day = currentDay(server);
         if (day > 0L) {
-            line.append(' ').append(ARROW).append(" DÍA ").append(day);
+            line.append(" [DÍA ").append(day).append(']');
         }
-        return line.append("] ").append(SKULL).toString();
+        return line.append(' ').append(SKULL).toString();
     }
 
     /**

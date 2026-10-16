@@ -19,10 +19,10 @@ import net.minecraft.network.chat.Component;
 public final class ToqueServerBannerRenderer {
     /** Every character here must exist in Minecraft's font: no emoji above the BMP. */
     private static final String[] MESSAGES = {
-            "☠ UNA VIDA. UNA RUN. UN DESTINO.",
             "⚔ SOBREVIVE • EXPLORA • CONSTRUYE",
-            "⚡ ¿CUÁNTO DURARÁ ESTA RUN?",
-            "☠ SI UNO MUERE, TODOS REINICIAMOS."
+            "☠ HARDCORE, PERO SIGUES EN PIE.",
+            "⚡ ¿CUÁNTOS DÍAS AGUANTARÁS?",
+            "☠ SI MUERES, VE POR TUS COSAS."
     };
     private static final long MESSAGE_MILLIS = 1800L;
     private static final long PULSE_MILLIS = 2200L;
@@ -98,25 +98,14 @@ public final class ToqueServerBannerRenderer {
                 x, y, 0xFFFF5555);
     }
 
-    /** TRY and DAY, right aligned on the first line, when the MOTD carries them. */
+    /** The day, right aligned on the first line, when the MOTD carries it. */
     private static void drawSeries(GuiGraphicsExtractor context, Font font, ServerData server,
                                    int right, int y) {
         SeriesInfo series = SeriesInfo.from(server);
-        if (!series.hasTry() && !series.hasDay()) {
+        if (!series.hasDay()) {
             return;
         }
-        StringBuilder text = new StringBuilder();
-        if (series.hasTry()) {
-            text.append("TRY #").append(series.tryNumber());
-        }
-        if (series.hasTry() && series.hasDay()) {
-            text.append("   ");
-        }
-        if (series.hasDay()) {
-            text.append("DÍA ").append(series.day());
-        }
-
-        String line = text.toString();
+        String line = "DÍA " + series.day();
         context.text(font, Component.literal(line).withStyle(ChatFormatting.GOLD),
                 right - PADDING - font.width(line), y, 0xFFFFAA00);
     }

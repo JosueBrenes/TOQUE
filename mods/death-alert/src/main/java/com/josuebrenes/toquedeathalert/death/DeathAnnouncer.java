@@ -15,7 +15,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 
-/** Shows the TOQUE death title to everyone and plays the series sound. */
+/** Shows the TOQUE death title to everyone and plays the series sound; the player respawns afterwards. */
 public final class DeathAnnouncer {
     private static final SoundEvent DEATH_SOUND = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("toque", "death"));
     private static final String SKULL = "☠";
@@ -32,7 +32,7 @@ public final class DeathAnnouncer {
                 .append(Component.literal(" HA MUERTO " + SKULL).withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD));
 
         Component subtitle = role.badge()
-                .append(Component.literal("  •  LA RUN HA TERMINADO")
+                .append(Component.literal("  •  VE POR TUS COSAS")
                         .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
 
         for (ServerPlayer viewer : server.getPlayerList().getPlayers()) {

@@ -14,10 +14,10 @@ Built from the repository root: `./gradlew :death-alert:build`
 - **Ranks.** Derived from the death count, never stored, so they cannot fall out of
   step with it. Shown in the player list, above players' heads and in the panel.
 - **Player list.** Name, health bar and deaths per player, under a banner with the
-  Try, the day and the toll.
-- **Side panel.** Per player: name, rank, deaths, coordinates, dimension, Try, day
+  day and the toll.
+- **Side panel.** Per player: name, rank, deaths, coordinates, dimension, day
   and objective.
-- **Server list MOTD.** Rebuilt on every ping with the live Try, day and toll.
+- **Server list MOTD.** Rebuilt on every ping with the live day and toll.
 - **Target panel.** Look at any mob, player or animal up to 24 blocks away and a
   box at the top of the screen, styled like the side panel, shows its name, its
   hearts and its exact health.

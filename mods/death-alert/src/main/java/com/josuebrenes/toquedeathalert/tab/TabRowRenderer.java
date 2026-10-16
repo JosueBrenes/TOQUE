@@ -63,14 +63,14 @@ public final class TabRowRenderer {
 
     /** The name, then where the series stands, in the same shape as the server list. */
     public Component header(MinecraftServer server) {
-        MutableComponent progress = Component.literal("TRY #" + stats.tryNumber()).withStyle(ChatFormatting.GOLD);
+        MutableComponent progress = Component.empty();
 
         long day = currentDay(server);
         if (day > 0L) {
-            progress.append(separator())
-                    .append(Component.literal("DÍA " + day).withStyle(ChatFormatting.YELLOW));
+            progress.append(Component.literal("DÍA " + day).withStyle(ChatFormatting.GOLD))
+                    .append(separator());
         }
-        progress.append(separator()).append(deaths(stats.totalDeaths()));
+        progress.append(deaths(stats.totalDeaths()));
 
         return Component.literal("\n")
                 .append(Gradient.apply(SKULL + " TOQUE HARDCORE " + SKULL,
@@ -87,7 +87,7 @@ public final class TabRowRenderer {
                 .append(Component.literal("\n"));
     }
 
-    /** Current day of the world this Try is running in. */
+    /** Current day of the world. */
     private static long currentDay(MinecraftServer server) {
         ServerLevel overworld = server.overworld();
         return overworld == null ? -1L : (overworld.getDefaultClockTime() / TICKS_PER_DAY) + 1L;

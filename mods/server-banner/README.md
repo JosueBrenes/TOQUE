@@ -40,7 +40,7 @@ selecting and the play, edit, delete and move buttons all keep working.
 
 ## Limitation
 
-The Try and the day come from the server MOTD. A multiplayer list entry receives
+The day comes from the server MOTD. A multiplayer list entry receives
 only what the status reply carries — MOTD, player counts, version, favicon — and
-there is no other channel, so they are parsed out of the MOTD when it mentions them
+there is no other channel, so it is parsed out of the MOTD when it mentions it
 and left out when it does not.
