@@ -1,10 +1,9 @@
 package com.josuebrenes.toquedeathalert.tab;
 
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
 import java.util.Locale;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 
 /**
  * Renders a health bar for the player list.
@@ -24,7 +23,7 @@ public final class HeartBar {
     private HeartBar() {
     }
 
-    public static Text render(float health, float maxHealth) {
+    public static Component render(float health, float maxHealth) {
         float safeMax = maxHealth <= 0.0F ? 20.0F : maxHealth;
         float current = Math.max(0.0F, Math.min(health, safeMax));
 
@@ -36,22 +35,22 @@ public final class HeartBar {
         boolean half = (halves % 2) == 1;
         int empty = SLOTS - full - (half ? 1 : 0);
 
-        MutableText bar = Text.empty();
+        MutableComponent bar = Component.empty();
         if (full > 0) {
-            bar.append(Text.literal(FULL.repeat(full)).formatted(Formatting.RED));
+            bar.append(Component.literal(FULL.repeat(full)).withStyle(ChatFormatting.RED));
         }
         if (half) {
-            bar.append(Text.literal(FULL).formatted(Formatting.GOLD));
+            bar.append(Component.literal(FULL).withStyle(ChatFormatting.GOLD));
         }
         if (empty > 0) {
-            bar.append(Text.literal(EMPTY.repeat(empty)).formatted(Formatting.DARK_GRAY));
+            bar.append(Component.literal(EMPTY.repeat(empty)).withStyle(ChatFormatting.DARK_GRAY));
         }
         // On a normal 20 HP bar the hearts already say it, and the numbers were
         // just noise on every row. They earn their place only when a potion or an
         // attribute has moved the maximum, where ten hearts no longer mean 20 HP.
         if (safeMax != VANILLA_MAX_HEALTH) {
-            bar.append(Text.literal(" " + number(current) + "/" + number(safeMax))
-                    .formatted(Formatting.GRAY));
+            bar.append(Component.literal(" " + number(current) + "/" + number(safeMax))
+                    .withStyle(ChatFormatting.GRAY));
         }
         return bar;
     }

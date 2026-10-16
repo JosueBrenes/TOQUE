@@ -2,15 +2,16 @@ package com.josuebrenes.toquedeathalert.nametag;
 
 import com.josuebrenes.toquedeathalert.role.PlayerRole;
 import com.josuebrenes.toquedeathalert.series.SeriesStatsRepository;
-import net.minecraft.network.packet.s2c.play.TeamS2CPacket;
-import net.minecraft.scoreboard.Team;
+import net.minecraft.ChatFormatting;
+import net.minecraft.world.scores.TeamColor;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.scores.PlayerTeam;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -31,7 +32,7 @@ public final class RoleNametags {
     private static final String TEAM_PREFIX = "toque_rank_";
 
     private final SeriesStatsRepository stats;
-    private final Map<PlayerRole, Team> teams = new EnumMap<>(PlayerRole.class);
+    private final Map<PlayerRole, PlayerTeam> teams = new EnumMap<>(PlayerRole.class);
     private final Map<UUID, PlayerRole> assigned = new ConcurrentHashMap<>();
 
     public RoleNametags(SeriesStatsRepository stats) {
@@ -45,10 +46,10 @@ public final class RoleNametags {
      * away, teams included, so the names above heads would lose their rank until
      * the teams are declared again.
      */
-    public void install(MinecraftServer server, ServerPlayerEntity player) {
-        for (Team team : teamsFor(server).values()) {
-            player.networkHandler.sendPacket(TeamS2CPacket.updateRemovedTeam(team));
-            player.networkHandler.sendPacket(TeamS2CPacket.updateTeam(team, true));
+    public void install(MinecraftServer server, ServerPlayer player) {
+        for (PlayerTeam team : teamsFor(server).values()) {
+            player.connection.send(ClientboundSetPlayerTeamPacket.createRemovePacket(team));
+            player.connection.send(ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(team, true));
         }
         assigned.clear();
         refresh(server);
@@ -60,19 +61,19 @@ public final class RoleNametags {
 
     /** Moves anyone whose rank has changed into the matching team. */
     public void refresh(MinecraftServer server) {
-        Map<PlayerRole, Team> byRole = teamsFor(server);
+        Map<PlayerRole, PlayerTeam> byRole = teamsFor(server);
 
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            PlayerRole role = PlayerRole.fromDeaths(stats.deathsOf(player.getUuid()));
-            if (role == assigned.get(player.getUuid())) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            PlayerRole role = PlayerRole.fromDeaths(stats.deathsOf(player.getUUID()));
+            if (role == assigned.get(player.getUUID())) {
                 continue;
             }
-            assigned.put(player.getUuid(), role);
+            assigned.put(player.getUUID(), role);
 
-            TeamS2CPacket packet = TeamS2CPacket.changePlayerTeam(byRole.get(role),
-                    player.getGameProfile().getName(), TeamS2CPacket.Operation.ADD);
-            for (ServerPlayerEntity viewer : server.getPlayerManager().getPlayerList()) {
-                viewer.networkHandler.sendPacket(packet);
+            ClientboundSetPlayerTeamPacket packet = ClientboundSetPlayerTeamPacket.createPlayerPacket(byRole.get(role),
+                    player.getGameProfile().name(), ClientboundSetPlayerTeamPacket.Action.ADD);
+            for (ServerPlayer viewer : server.getPlayerList().getPlayers()) {
+                viewer.connection.send(packet);
             }
         }
     }
@@ -81,15 +82,15 @@ public final class RoleNametags {
      * The rank teams, built once against the server scoreboard but never added to
      * it: a Team needs a scoreboard to exist, not to be registered in one.
      */
-    private Map<PlayerRole, Team> teamsFor(MinecraftServer server) {
+    private Map<PlayerRole, PlayerTeam> teamsFor(MinecraftServer server) {
         if (!teams.isEmpty()) {
             return teams;
         }
         for (PlayerRole role : PlayerRole.values()) {
-            Team team = new Team(server.getScoreboard(), TEAM_PREFIX + role.ordinal());
-            team.setDisplayName(Text.literal(role.label()));
-            team.setPrefix(role.tag().append(Text.literal(" ")));
-            team.setColor(Formatting.WHITE);
+            PlayerTeam team = new PlayerTeam(server.getScoreboard(), TEAM_PREFIX + role.ordinal());
+            team.setDisplayName(Component.literal(role.label()));
+            team.setPlayerPrefix(role.tag().append(Component.literal(" ")));
+            team.setColor(Optional.of(TeamColor.WHITE));
             teams.put(role, team);
         }
         return teams;

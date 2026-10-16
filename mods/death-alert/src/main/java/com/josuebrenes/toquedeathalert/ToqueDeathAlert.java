@@ -16,13 +16,13 @@ import com.josuebrenes.toquedeathalert.tab.TabListService;
 import com.josuebrenes.toquedeathalert.tab.TabRowRenderer;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Entry point. Wires the services together and registers the server events;
@@ -78,7 +78,7 @@ public final class ToqueDeathAlert implements ModInitializer {
      * world folder that Hardcore World Reset deletes on every new Try.
      */
     private ToqueRuntime.Services buildServices(MinecraftServer server) {
-        SeriesStatsRepository stats = new SeriesStatsRepository(server.getRunDirectory());
+        SeriesStatsRepository stats = new SeriesStatsRepository(server.getServerDirectory());
         stats.load();
 
         TabListService tabList = new TabListService(new TabRowRenderer(stats));
@@ -100,10 +100,10 @@ public final class ToqueDeathAlert implements ModInitializer {
             if (services == null) {
                 return;
             }
-            ServerPlayerEntity player = handler.getPlayer();
+            ServerPlayer player = handler.getPlayer();
 
             services.importer().migrateOnJoin(server, player);
-            services.tabList().invalidate(player.getUuid());
+            services.tabList().invalidate(player.getUUID());
             // Everyone gets it: the footer carries the online count.
             services.tabList().sendHeaderAndFooter(server);
             reinstallOverlays(server, player);
@@ -114,17 +114,17 @@ public final class ToqueDeathAlert implements ModInitializer {
         // to a freshly generated world on every Try, and dying moves them too, so
         // both have to be put back rather than left to a timer.
         ServerPlayerEvents.AFTER_RESPAWN.register(
-                (oldPlayer, newPlayer, alive) -> reinstallOverlays(newPlayer.server, newPlayer));
+                (oldPlayer, newPlayer, alive) -> reinstallOverlays(newPlayer.level().getServer(), newPlayer));
 
-        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(
-                (player, origin, destination) -> reinstallOverlays(player.server, player));
+        ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register(
+                (player, origin, destination) -> reinstallOverlays(player.level().getServer(), player));
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             ToqueRuntime.Services services = RUNTIME.services();
             if (services == null) {
                 return;
             }
-            java.util.UUID uuid = handler.getPlayer().getUuid();
+            java.util.UUID uuid = handler.getPlayer().getUUID();
             services.tabList().invalidate(uuid);
             services.tabList().sendHeaderAndFooter(server);
             services.hud().forget(uuid);
@@ -134,7 +134,7 @@ public final class ToqueDeathAlert implements ModInitializer {
     }
 
     /** Puts the sidebar, the rank teams and the target bar back on one player's client. */
-    private static void reinstallOverlays(MinecraftServer server, ServerPlayerEntity player) {
+    private static void reinstallOverlays(MinecraftServer server, ServerPlayer player) {
         ToqueRuntime.Services services = RUNTIME.services();
         if (services == null) {
             return;
@@ -143,7 +143,7 @@ public final class ToqueDeathAlert implements ModInitializer {
         services.nametags().install(server, player);
         // The bar is dropped and added again on the next check, rather than trusted
         // to have survived the client's move to another world.
-        services.targetHud().forget(player.getUuid());
+        services.targetHud().forget(player.getUUID());
     }
 
     private void registerCommands() {

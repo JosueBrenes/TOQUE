@@ -2,21 +2,21 @@ package com.josuebrenes.toquemobspawner.spawn;
 
 import com.josuebrenes.toquemobspawner.config.SpawnSettings;
 import com.josuebrenes.toquemobspawner.config.Zone;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.SpawnGroup;
-import net.minecraft.entity.SpawnLocation;
-import net.minecraft.entity.SpawnLocationTypes;
-import net.minecraft.entity.SpawnReason;
-import net.minecraft.entity.SpawnRestriction;
-import net.minecraft.entity.mob.HostileEntity;
-import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.random.Random;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.Difficulty;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.SpawnPlacementType;
+import net.minecraft.world.entity.SpawnPlacementTypes;
+import net.minecraft.world.entity.SpawnPlacements;
+import net.minecraft.world.entity.monster.Monster;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -53,49 +53,49 @@ public final class SpawnUtils {
 
     public enum Outcome { SPAWNED, NO_POSITION, NOT_A_MOB }
 
-    public static Outcome trySpawn(ServerWorld world, ServerPlayerEntity player, Zone zone,
+    public static Outcome trySpawn(ServerLevel world, ServerPlayer player, Zone zone,
                                    EntityType<?> type, SpawnSettings settings) {
-        if (type.getSpawnGroup() == SpawnGroup.MONSTER && world.getDifficulty() == Difficulty.PEACEFUL) {
+        if (type.getCategory() == MobCategory.MONSTER && world.getDifficulty() == Difficulty.PEACEFUL) {
             return Outcome.NO_POSITION;
         }
-        Random random = world.getRandom();
+        RandomSource random = world.getRandom();
         for (int attempt = 0; attempt < settings.maxSpawnAttempts(); attempt++) {
             BlockPos pos = findPosition(world, player, zone, type, settings, random);
             if (pos == null) {
                 continue;
             }
-            Entity entity = type.create(world);
+            Entity entity = type.create(world, EntitySpawnReason.NATURAL);
             if (entity == null) {
                 return Outcome.NO_POSITION;
             }
-            if (!(entity instanceof MobEntity mob)) {
+            if (!(entity instanceof Mob mob)) {
                 // Never added to the world, so there is nothing to clean up.
                 return Outcome.NOT_A_MOB;
             }
-            mob.refreshPositionAndAngles(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5,
+            mob.snapTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5,
                     random.nextFloat() * 360.0F, 0.0F);
             // canSpawn(world, reason) weighs the ground under the mob, which a
             // mob placed in mid-air does not have.
-            if ((!zone.spawnInAir() && !mob.canSpawn(world, SpawnReason.NATURAL)) || !mob.canSpawn(world)) {
+            if ((!zone.spawnInAir() && !mob.checkSpawnRules(world, EntitySpawnReason.NATURAL)) || !mob.checkSpawnObstruction(world)) {
                 continue;
             }
-            mob.initialize(world, world.getLocalDifficulty(pos), SpawnReason.NATURAL, null);
+            mob.finalizeSpawn(world, world.getCurrentDifficultyAt(pos), EntitySpawnReason.NATURAL, null);
             // Persistent mobs are left out of vanilla's mob cap, so ours add to the
             // natural spawns instead of taking their place. They are despawned by
             // SpawnManager instead of by vanilla.
-            mob.setPersistent();
-            mob.addCommandTag(ExtraMobTracker.TAG);
-            world.spawnEntityAndPassengers(mob);
+            mob.setPersistenceRequired();
+            mob.addTag(ExtraMobTracker.TAG);
+            world.addFreshEntityWithPassengers(mob);
             return Outcome.SPAWNED;
         }
         return Outcome.NO_POSITION;
     }
 
     @Nullable
-    private static BlockPos findPosition(ServerWorld world, ServerPlayerEntity player, Zone zone,
-                                         EntityType<?> type, SpawnSettings settings, Random random) {
-        int bottom = world.getBottomY() + 1;
-        int top = world.getTopY() - 2;
+    private static BlockPos findPosition(ServerLevel world, ServerPlayer player, Zone zone,
+                                         EntityType<?> type, SpawnSettings settings, RandomSource random) {
+        int bottom = world.getMinY() + 1;
+        int top = world.getMaxY() - 1;
         int x;
         int z;
         int startY;
@@ -105,78 +105,78 @@ public final class SpawnUtils {
             if (bottom > top) {
                 return null;
             }
-            x = MathHelper.nextInt(random, zone.xMin(), zone.xMax());
-            z = MathHelper.nextInt(random, zone.zMin(), zone.zMax());
-            startY = MathHelper.nextInt(random, bottom, top);
+            x = Mth.nextInt(random, zone.xMin(), zone.xMax());
+            z = Mth.nextInt(random, zone.zMin(), zone.zMax());
+            startY = Mth.nextInt(random, bottom, top);
         } else {
             double angle = random.nextDouble() * Math.PI * 2.0;
-            double distance = MathHelper.nextDouble(random, zone.minPlayerDistance(),
+            double distance = Mth.nextDouble(random, zone.minPlayerDistance(),
                     Math.max(zone.minPlayerDistance() + 1, settings.maxSpawnDistance()));
-            x = MathHelper.floor(player.getX() + Math.cos(angle) * distance);
-            z = MathHelper.floor(player.getZ() + Math.sin(angle) * distance);
-            startY = MathHelper.clamp(player.getBlockY() + MathHelper.nextInt(random, -VERTICAL_SPREAD, VERTICAL_SPREAD),
+            x = Mth.floor(player.getX() + Math.cos(angle) * distance);
+            z = Mth.floor(player.getZ() + Math.sin(angle) * distance);
+            startY = Mth.clamp(player.getBlockY() + Mth.nextInt(random, -VERTICAL_SPREAD, VERTICAL_SPREAD),
                     bottom, top);
         }
 
-        BlockPos.Mutable cursor = new BlockPos.Mutable(x, startY, z);
-        if (!world.shouldTickEntity(cursor) || !world.getWorldBorder().contains(cursor)) {
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(x, startY, z);
+        if (!world.isPositionEntityTicking(cursor) || !world.getWorldBorder().isWithinBounds(cursor)) {
             return null;
         }
         if (zone.spawnInAir()) {
-            BlockPos pos = cursor.toImmutable();
+            BlockPos pos = cursor.immutable();
             return isValidInAir(world, pos, zone, type, random) ? pos : null;
         }
 
-        SpawnLocation location = SpawnRestriction.getLocation(type);
+        SpawnPlacementType location = SpawnPlacements.getPlacementType(type);
         // A mob nobody registered a placement rule for would otherwise be allowed
         // to appear in mid-air, so it is held to the ground rule.
-        SpawnLocation placement = location == SpawnLocationTypes.UNRESTRICTED ? SpawnLocationTypes.ON_GROUND : location;
+        SpawnPlacementType placement = location == SpawnPlacementTypes.NO_RESTRICTIONS ? SpawnPlacementTypes.ON_GROUND : location;
 
         for (int step = 0; step < VERTICAL_SCAN && cursor.getY() >= bottom; step++, cursor.move(0, -1, 0)) {
             if (!placement.isSpawnPositionOk(world, cursor, type)) {
                 continue;
             }
-            BlockPos pos = cursor.toImmutable();
+            BlockPos pos = cursor.immutable();
             return isValid(world, pos, zone, type, location, random) ? pos : null;
         }
         return null;
     }
 
-    private static boolean isValidInAir(ServerWorld world, BlockPos pos, Zone zone, EntityType<?> type,
-                                        Random random) {
+    private static boolean isValidInAir(ServerLevel world, BlockPos pos, Zone zone, EntityType<?> type,
+                                        RandomSource random) {
         double x = pos.getX() + 0.5;
         double z = pos.getZ() + 0.5;
-        if (world.isPlayerInRange(x, pos.getY(), z, zone.minPlayerDistance())) {
+        if (world.hasNearbyAlivePlayer(x, pos.getY(), z, zone.minPlayerDistance())) {
             return false;
         }
-        if (!world.getFluidState(pos).isEmpty() || !world.isSpaceEmpty(type.getSpawnBox(x, pos.getY(), z))) {
+        if (!world.getFluidState(pos).isEmpty() || !world.noCollision(type.getSpawnAABB(x, pos.getY(), z))) {
             return false;
         }
         return zone.ignoreLight()
-                || type.getSpawnGroup() != SpawnGroup.MONSTER
-                || HostileEntity.isSpawnDark(world, pos, random);
+                || type.getCategory() != MobCategory.MONSTER
+                || Monster.isDarkEnoughToSpawn(world, pos, random);
     }
 
-    private static boolean isValid(ServerWorld world, BlockPos pos, Zone zone, EntityType<?> type,
-                                   SpawnLocation location, Random random) {
+    private static boolean isValid(ServerLevel world, BlockPos pos, Zone zone, EntityType<?> type,
+                                   SpawnPlacementType location, RandomSource random) {
         double x = pos.getX() + 0.5;
         double z = pos.getZ() + 0.5;
-        if (world.isPlayerInRange(x, pos.getY(), z, zone.minPlayerDistance())) {
+        if (world.hasNearbyAlivePlayer(x, pos.getY(), z, zone.minPlayerDistance())) {
             return false;
         }
-        if (!world.isSpaceEmpty(type.getSpawnBox(x, pos.getY(), z))) {
+        if (!world.noCollision(type.getSpawnAABB(x, pos.getY(), z))) {
             return false;
         }
         if (zone.ignoreLight() && zone.spawnInside()) {
             return true;
         }
-        if (!SpawnRestriction.canSpawn(type, world, SpawnReason.NATURAL, pos, random)) {
+        if (!SpawnPlacements.checkSpawnRules(type, world, EntitySpawnReason.NATURAL, pos, random)) {
             return false;
         }
         // An unregistered monster from another mod has no light rule of its own;
         // give it the one every vanilla hostile uses.
-        return location != SpawnLocationTypes.UNRESTRICTED
-                || type.getSpawnGroup() != SpawnGroup.MONSTER
-                || HostileEntity.isSpawnDark(world, pos, random);
+        return location != SpawnPlacementTypes.NO_RESTRICTIONS
+                || type.getCategory() != MobCategory.MONSTER
+                || Monster.isDarkEnoughToSpawn(world, pos, random);
     }
 }

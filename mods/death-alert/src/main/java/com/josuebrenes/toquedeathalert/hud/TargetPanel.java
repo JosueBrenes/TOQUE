@@ -4,20 +4,20 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.josuebrenes.toquedeathalert.core.Gradient;
 import com.josuebrenes.toquedeathalert.core.ToqueLog;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
-
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 
 /**
  * The box naming a target, built as a single line of text.
@@ -38,10 +38,10 @@ import java.util.Map;
  * <p>The layout constants live in {@code build.py} too; the two change together.
  */
 final class TargetPanel {
-    private static final Identifier BOX_FONT = Identifier.of("toque", "hud_box");
-    private static final Identifier NAME_FONT = Identifier.of("toque", "hud_name");
-    private static final Identifier HEART_FONT = Identifier.of("toque", "hud_hearts");
-    private static final Identifier INFO_FONT = Identifier.of("toque", "hud_info");
+    private static final FontDescription BOX_FONT = new FontDescription.Resource(Identifier.fromNamespaceAndPath("toque", "hud_box"));
+    private static final FontDescription NAME_FONT = new FontDescription.Resource(Identifier.fromNamespaceAndPath("toque", "hud_name"));
+    private static final FontDescription HEART_FONT = new FontDescription.Resource(Identifier.fromNamespaceAndPath("toque", "hud_hearts"));
+    private static final FontDescription INFO_FONT = new FontDescription.Resource(Identifier.fromNamespaceAndPath("toque", "hud_info"));
 
     private static final char BOX_LEFT = '';
     private static final char BOX_RIGHT = '';
@@ -86,12 +86,12 @@ final class TargetPanel {
     private TargetPanel() {
     }
 
-    static Text render(LivingEntity target) {
+    static Component render(LivingEntity target) {
         String name = name(target);
 
-        int hp = MathHelper.ceil(Math.max(0.0F, target.getHealth()));
-        int max = MathHelper.ceil(Math.max(1.0F, target.getMaxHealth()));
-        int slots = MathHelper.ceil(max / 2.0F);
+        int hp = Mth.ceil(Math.max(0.0F, target.getHealth()));
+        int max = Mth.ceil(Math.max(1.0F, target.getMaxHealth()));
+        int slots = Mth.ceil(max / 2.0F);
         int halves = hp;
         if (slots > MAX_DRAWN_HEARTS) {
             // A Wither in hearts would cross the screen; ten scaled hearts read the
@@ -112,30 +112,30 @@ final class TargetPanel {
         int content = Math.max(heartsWidth, Math.max(nameWidth, infoWidth));
         int boxWidth = content + PADDING * 2;
 
-        MutableText panel = Text.empty();
+        MutableComponent panel = Component.empty();
         box(panel, boxWidth);
 
         int nameLeft = PADDING + (content - nameWidth) / 2;
         panel.append(space(-(boxWidth - nameLeft)));
-        panel.append(Text.empty().setStyle(Style.EMPTY.withFont(NAME_FONT))
+        panel.append(Component.empty().setStyle(Style.EMPTY.withFont(NAME_FONT))
                 .append(Gradient.apply(name, Gradient.RED_FROM, Gradient.RED_TO, true)));
         panel.append(space(-(nameLeft + nameWidth - PADDING)));
 
         hearts(panel, halves, slots);
         panel.append(space(-slots * HEART_STEP));
 
-        panel.append(Text.literal(BULLET + " ").setStyle(Style.EMPTY.withFont(INFO_FONT)
-                .withColor(Formatting.GRAY)));
-        panel.append(Text.literal(label).setStyle(Style.EMPTY.withFont(INFO_FONT)
-                .withColor(Formatting.WHITE)));
-        panel.append(Text.literal(value).setStyle(Style.EMPTY.withFont(INFO_FONT)
-                .withColor(Formatting.RED)));
+        panel.append(Component.literal(BULLET + " ").setStyle(Style.EMPTY.withFont(INFO_FONT)
+                .withColor(ChatFormatting.GRAY)));
+        panel.append(Component.literal(label).setStyle(Style.EMPTY.withFont(INFO_FONT)
+                .withColor(ChatFormatting.WHITE)));
+        panel.append(Component.literal(value).setStyle(Style.EMPTY.withFont(INFO_FONT)
+                .withColor(ChatFormatting.RED)));
         panel.append(space(boxWidth - PADDING - infoWidth));
         return panel;
     }
 
     /** The frame, from the left edge to exactly {@code width} pixels on. */
-    private static void box(MutableText panel, int width) {
+    private static void box(MutableComponent panel, int width) {
         StringBuilder glyphs = new StringBuilder();
         glyphs.append(BOX_LEFT).append(back(1));
         int inside = width - EDGE * 2;
@@ -154,7 +154,7 @@ final class TargetPanel {
     }
 
     /** One heart per two halves, as vanilla draws the player's own. */
-    private static void hearts(MutableText panel, int hp, int slots) {
+    private static void hearts(MutableComponent panel, int hp, int slots) {
         StringBuilder row = new StringBuilder();
         for (int i = 0; i < slots; i++) {
             int halves = hp - i * 2;
@@ -165,13 +165,13 @@ final class TargetPanel {
         panel.append(glyph(row.toString(), HEART_FONT));
     }
 
-    private static Text glyph(String glyphs, Identifier font) {
-        return Text.literal(glyphs).setStyle(Style.EMPTY.withFont(font).withColor(Formatting.WHITE)
+    private static Component glyph(String glyphs, FontDescription font) {
+        return Component.literal(glyphs).setStyle(Style.EMPTY.withFont(font).withColor(ChatFormatting.WHITE)
                 .withItalic(false));
     }
 
     /** Moves the pen by {@code pixels}, left when negative. */
-    private static Text space(int pixels) {
+    private static Component space(int pixels) {
         return glyph(pixels < 0 ? back(-pixels) : forward(pixels), BOX_FONT);
     }
 
@@ -212,13 +212,13 @@ final class TargetPanel {
      * known here, exactly, to be measured.
      */
     private static String name(LivingEntity target) {
-        if (target instanceof PlayerEntity player) {
-            return player.getGameProfile().getName();
+        if (target instanceof Player player) {
+            return player.getGameProfile().name();
         }
         if (target.hasCustomName()) {
             return target.getCustomName().getString();
         }
-        String spanish = SPANISH_NAMES.get(target.getType().getTranslationKey());
+        String spanish = SPANISH_NAMES.get(target.getType().getDescriptionId());
         return spanish != null ? spanish : target.getName().getString();
     }
 

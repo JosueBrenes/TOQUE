@@ -1,19 +1,19 @@
 package com.josuebrenes.toquedeathalert.hud;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.boss.BossBar;
-import net.minecraft.entity.boss.ServerBossBar;
-import net.minecraft.entity.decoration.ArmorStandEntity;
-import net.minecraft.entity.projectile.ProjectileUtil;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.server.level.ServerBossEvent;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
+import net.minecraft.world.BossEvent;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
@@ -46,7 +46,7 @@ public final class TargetHealthHud {
     private int checkCounter;
 
     /** One player's bar and the key of what it last showed, so it is only resent on change. */
-    private record Shown(ServerBossBar bar, String key) {
+    private record Shown(ServerBossEvent bar, String key) {
     }
 
     public void onServerTick(MinecraftServer server) {
@@ -54,7 +54,7 @@ public final class TargetHealthHud {
             return;
         }
         checkCounter = 0;
-        server.getPlayerManager().getPlayerList().forEach(this::refresh);
+        server.getPlayerList().getPlayers().forEach(this::refresh);
     }
 
     /**
@@ -64,71 +64,71 @@ public final class TargetHealthHud {
     public void forget(UUID uuid) {
         Shown previous = shown.remove(uuid);
         if (previous != null) {
-            previous.bar().clearPlayers();
+            previous.bar().removeAllPlayers();
         }
     }
 
-    private void refresh(ServerPlayerEntity player) {
+    private void refresh(ServerPlayer player) {
         LivingEntity target = target(player);
-        Shown previous = shown.get(player.getUuid());
+        Shown previous = shown.get(player.getUUID());
 
         if (target == null) {
-            forget(player.getUuid());
+            forget(player.getUUID());
             return;
         }
 
-        Text name = target.getDisplayName();
+        Component name = target.getDisplayName();
         float health = Math.max(0.0F, target.getHealth());
         float maxHealth = Math.max(1.0F, target.getMaxHealth());
-        String key = target.getId() + ":" + MathHelper.ceil(health) + ":" + maxHealth
+        String key = target.getId() + ":" + Mth.ceil(health) + ":" + maxHealth
                 + ":" + name.getString();
         if (previous != null && previous.key().equals(key)) {
             return;
         }
 
-        Text title = TargetPanel.render(target);
-        float percent = MathHelper.clamp(health / maxHealth, 0.0F, 1.0F);
+        Component title = TargetPanel.render(target);
+        float percent = Mth.clamp(health / maxHealth, 0.0F, 1.0F);
 
-        ServerBossBar bar;
+        ServerBossEvent bar;
         if (previous == null) {
-            bar = new ServerBossBar(title, BossBar.Color.GREEN, BossBar.Style.PROGRESS);
-            bar.setPercent(percent);
+            bar = new ServerBossEvent(UUID.randomUUID(), title, BossEvent.BossBarColor.GREEN, BossEvent.BossBarOverlay.PROGRESS);
+            bar.setProgress(percent);
             bar.addPlayer(player);
         } else {
             bar = previous.bar();
             bar.setName(title);
-            bar.setPercent(percent);
+            bar.setProgress(percent);
         }
-        shown.put(player.getUuid(), new Shown(bar, key));
+        shown.put(player.getUUID(), new Shown(bar, key));
     }
 
     @Nullable
-    private static LivingEntity target(ServerPlayerEntity player) {
+    private static LivingEntity target(ServerPlayer player) {
         // A spectator riding someone else's camera is not looking from their own eyes.
-        if (player.getCameraEntity() != player || !player.isAlive()) {
+        if (player.getCamera() != player || !player.isAlive()) {
             return null;
         }
 
-        Vec3d eyes = player.getCameraPosVec(1.0F);
-        Vec3d look = player.getRotationVec(1.0F);
+        Vec3 eyes = player.getEyePosition(1.0F);
+        Vec3 look = player.getViewVector(1.0F);
 
         double reach = RANGE;
-        HitResult block = player.raycast(RANGE, 1.0F, false);
+        HitResult block = player.pick(RANGE, 1.0F, false);
         if (block.getType() != HitResult.Type.MISS) {
-            reach = block.getPos().distanceTo(eyes);
+            reach = block.getLocation().distanceTo(eyes);
         }
 
-        Vec3d end = eyes.add(look.multiply(reach));
-        Box sweep = player.getBoundingBox().stretch(look.multiply(reach)).expand(1.0D);
-        EntityHitResult hit = ProjectileUtil.raycast(player, eyes, end, sweep,
+        Vec3 end = eyes.add(look.scale(reach));
+        AABB sweep = player.getBoundingBox().expandTowards(look.scale(reach)).inflate(1.0D);
+        EntityHitResult hit = ProjectileUtil.getEntityHitResult(player, eyes, end, sweep,
                 entity -> isReadable(player, entity), reach * reach);
         return hit != null && hit.getEntity() instanceof LivingEntity living ? living : null;
     }
 
-    private static boolean isReadable(ServerPlayerEntity viewer, Entity entity) {
+    private static boolean isReadable(ServerPlayer viewer, Entity entity) {
         return entity instanceof LivingEntity
-                && !(entity instanceof ArmorStandEntity)
-                && entity.canHit()
+                && !(entity instanceof ArmorStand)
+                && entity.isPickable()
                 && !entity.isSpectator()
                 && !entity.isInvisibleTo(viewer);
     }

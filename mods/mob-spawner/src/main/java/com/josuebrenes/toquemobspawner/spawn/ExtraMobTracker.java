@@ -1,12 +1,6 @@
 package com.josuebrenes.toquemobspawner.spawn;
 
 import com.josuebrenes.toquemobspawner.config.Zone;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.world.World;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -14,6 +8,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.Level;
 
 /**
  * Every loaded mob that Toque Mob Spawner created, and nothing else.
@@ -27,20 +26,20 @@ import java.util.function.Predicate;
 public final class ExtraMobTracker {
     public static final String TAG = "toque_mob_spawner";
 
-    private final Set<MobEntity> mobs = Collections.newSetFromMap(new HashMap<>());
+    private final Set<Mob> mobs = Collections.newSetFromMap(new HashMap<>());
 
     public static boolean isExtra(Entity entity) {
-        return entity instanceof MobEntity && entity.getCommandTags().contains(TAG);
+        return entity instanceof Mob && entity.entityTags().contains(TAG);
     }
 
     public void onLoad(Entity entity) {
-        if (entity instanceof MobEntity mob && isExtra(mob)) {
+        if (entity instanceof Mob mob && isExtra(mob)) {
             mobs.add(mob);
         }
     }
 
     public void onUnload(Entity entity) {
-        if (entity instanceof MobEntity mob) {
+        if (entity instanceof Mob mob) {
             mobs.remove(mob);
         }
     }
@@ -54,11 +53,11 @@ public final class ExtraMobTracker {
     }
 
     /** Ours within {@code radius} blocks of a point, in one world. */
-    public int countNear(ServerWorld world, double x, double y, double z, double radius) {
+    public int countNear(ServerLevel world, double x, double y, double z, double radius) {
         double radiusSquared = radius * radius;
         int count = 0;
-        for (MobEntity mob : mobs) {
-            if (mob.getWorld() == world && mob.squaredDistanceTo(x, y, z) <= radiusSquared) {
+        for (Mob mob : mobs) {
+            if (mob.level() == world && mob.distanceToSqr(x, y, z) <= radiusSquared) {
                 count++;
             }
         }
@@ -68,8 +67,8 @@ public final class ExtraMobTracker {
     /** How many of ours stand in each zone, counted once per check. */
     public Map<String, Integer> countByZone(List<Zone> zones) {
         Map<String, Integer> counts = new HashMap<>();
-        for (MobEntity mob : mobs) {
-            RegistryKey<World> world = mob.getWorld().getRegistryKey();
+        for (Mob mob : mobs) {
+            ResourceKey<Level> world = mob.level().dimension();
             int x = mob.getBlockX();
             int y = mob.getBlockY();
             int z = mob.getBlockZ();
@@ -87,9 +86,9 @@ public final class ExtraMobTracker {
      * Removes ours that match {@code shouldGo}. Collected first: discarding fires
      * the unload event, which edits the set being walked.
      */
-    public int removeIf(Predicate<MobEntity> shouldGo) {
-        List<MobEntity> doomed = new ArrayList<>();
-        for (MobEntity mob : mobs) {
+    public int removeIf(Predicate<Mob> shouldGo) {
+        List<Mob> doomed = new ArrayList<>();
+        for (Mob mob : mobs) {
             if (mob.isAlive() && shouldGo.test(mob)) {
                 doomed.add(mob);
             }

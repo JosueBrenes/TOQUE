@@ -3,20 +3,19 @@ package com.josuebrenes.toquedeathalert.hud;
 import com.josuebrenes.toquedeathalert.core.Gradient;
 import com.josuebrenes.toquedeathalert.role.PlayerRole;
 import com.josuebrenes.toquedeathalert.series.SeriesStatsRepository;
-import net.minecraft.network.packet.s2c.play.ScoreboardDisplayS2CPacket;
-import net.minecraft.network.packet.s2c.play.ScoreboardObjectiveUpdateS2CPacket;
-import net.minecraft.network.packet.s2c.play.ScoreboardScoreUpdateS2CPacket;
-import net.minecraft.scoreboard.ScoreboardCriterion;
-import net.minecraft.scoreboard.ScoreboardDisplaySlot;
-import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.scoreboard.number.BlankNumberFormat;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.numbers.BlankFormat;
+import net.minecraft.network.protocol.game.ClientboundSetDisplayObjectivePacket;
+import net.minecraft.network.protocol.game.ClientboundSetObjectivePacket;
+import net.minecraft.network.protocol.game.ClientboundSetScorePacket;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
-
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.scores.DisplaySlot;
+import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +48,7 @@ public final class SidebarHud {
 
     private final SeriesStatsRepository stats;
     private final Map<UUID, List<String>> lastLines = new ConcurrentHashMap<>();
-    private ScoreboardObjective objective;
+    private Objective objective;
     private int refreshCounter;
 
     public SidebarHud(SeriesStatsRepository stats) {
@@ -61,7 +60,7 @@ public final class SidebarHud {
             return;
         }
         refreshCounter = 0;
-        server.getPlayerManager().getPlayerList().forEach(player -> refresh(server, player));
+        server.getPlayerList().getPlayers().forEach(player -> refresh(server, player));
     }
 
     /**
@@ -72,15 +71,15 @@ public final class SidebarHud {
      * scoreboard is empty; a remove for one it does not have is ignored. Getting
      * this wrong crashed the client every time the panel was reinstalled.
      */
-    public void install(MinecraftServer server, ServerPlayerEntity player) {
-        ScoreboardObjective target = objective(server);
-        player.networkHandler.sendPacket(
-                new ScoreboardObjectiveUpdateS2CPacket(target, REMOVE_MODE));
-        player.networkHandler.sendPacket(
-                new ScoreboardObjectiveUpdateS2CPacket(target, ADD_MODE));
-        player.networkHandler.sendPacket(
-                new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, target));
-        lastLines.remove(player.getUuid());
+    public void install(MinecraftServer server, ServerPlayer player) {
+        Objective target = objective(server);
+        player.connection.send(
+                new ClientboundSetObjectivePacket(target, REMOVE_MODE));
+        player.connection.send(
+                new ClientboundSetObjectivePacket(target, ADD_MODE));
+        player.connection.send(
+                new ClientboundSetDisplayObjectivePacket(DisplaySlot.SIDEBAR, target));
+        lastLines.remove(player.getUUID());
     }
 
     public void forget(UUID uuid) {
@@ -88,10 +87,10 @@ public final class SidebarHud {
     }
 
     /** Re-sends only the lines that changed since the last refresh. */
-    private void refresh(MinecraftServer server, ServerPlayerEntity player) {
-        List<Text> lines = lines(server, player);
-        List<String> rendered = lines.stream().map(Text::getString).toList();
-        List<String> previous = lastLines.get(player.getUuid());
+    private void refresh(MinecraftServer server, ServerPlayer player) {
+        List<Component> lines = lines(server, player);
+        List<String> rendered = lines.stream().map(Component::getString).toList();
+        List<String> previous = lastLines.get(player.getUUID());
 
         for (int i = 0; i < lines.size(); i++) {
             if (previous != null && i < previous.size() && previous.get(i).equals(rendered.get(i))) {
@@ -99,49 +98,49 @@ public final class SidebarHud {
             }
             // The sidebar sorts by score descending, so the first line needs the
             // highest one for the panel to read top to bottom.
-            player.networkHandler.sendPacket(new ScoreboardScoreUpdateS2CPacket(
+            player.connection.send(new ClientboundSetScorePacket(
                     holder(i), OBJECTIVE_NAME, lines.size() - i,
-                    Optional.of(lines.get(i)), Optional.of(BlankNumberFormat.INSTANCE)));
+                    Optional.of(lines.get(i)), Optional.of(BlankFormat.INSTANCE)));
         }
-        lastLines.put(player.getUuid(), rendered);
+        lastLines.put(player.getUUID(), rendered);
     }
 
-    private List<Text> lines(MinecraftServer server, ServerPlayerEntity player) {
-        PlayerRole role = PlayerRole.fromDeaths(stats.deathsOf(player.getUuid()));
-        BlockPos pos = player.getBlockPos();
+    private List<Component> lines(MinecraftServer server, ServerPlayer player) {
+        PlayerRole role = PlayerRole.fromDeaths(stats.deathsOf(player.getUUID()));
+        BlockPos pos = player.blockPosition();
 
-        List<Text> lines = new ArrayList<>();
-        lines.add(entry("Jugador", Text.literal(player.getGameProfile().getName())
-                .formatted(Formatting.WHITE)));
+        List<Component> lines = new ArrayList<>();
+        lines.add(entry("Jugador", Component.literal(player.getGameProfile().name())
+                .withStyle(ChatFormatting.WHITE)));
         lines.add(entry("Rango", role.badge()));
-        lines.add(entry("Muertes", Text.literal("☠ " + stats.deathsOf(player.getUuid()))
-                .formatted(Formatting.RED)));
+        lines.add(entry("Muertes", Component.literal("☠ " + stats.deathsOf(player.getUUID()))
+                .withStyle(ChatFormatting.RED)));
         lines.add(blank());
-        lines.add(entry("XYZ", Text.literal(pos.getX() + " " + pos.getY() + " " + pos.getZ())
-                .formatted(Formatting.AQUA)));
-        lines.add(entry("Mundo", Text.literal(dimension(player)).formatted(Formatting.GREEN)));
+        lines.add(entry("XYZ", Component.literal(pos.getX() + " " + pos.getY() + " " + pos.getZ())
+                .withStyle(ChatFormatting.AQUA)));
+        lines.add(entry("Mundo", Component.literal(dimension(player)).withStyle(ChatFormatting.GREEN)));
         lines.add(blank());
-        lines.add(entry("Try", Text.literal("#" + stats.tryNumber()).formatted(Formatting.GOLD)));
-        lines.add(entry("Día", Text.literal(Long.toString(currentDay(server)))
-                .formatted(Formatting.YELLOW)));
-        lines.add(entry("Objetivo", Text.literal(stats.objective()).formatted(Formatting.GOLD)));
+        lines.add(entry("Try", Component.literal("#" + stats.tryNumber()).withStyle(ChatFormatting.GOLD)));
+        lines.add(entry("Día", Component.literal(Long.toString(currentDay(server)))
+                .withStyle(ChatFormatting.YELLOW)));
+        lines.add(entry("Objetivo", Component.literal(stats.objective()).withStyle(ChatFormatting.GOLD)));
         return lines;
     }
 
-    private static Text entry(String label, Text value) {
+    private static Component entry(String label, Component value) {
         // Grey on grey was almost unreadable over the world behind the panel, so
         // the labels are white and only the bullet is dimmed.
-        return Text.literal("▪ ").formatted(Formatting.GRAY)
-                .append(Text.literal(label + ": ").formatted(Formatting.WHITE))
+        return Component.literal("▪ ").withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(label + ": ").withStyle(ChatFormatting.WHITE))
                 .append(value);
     }
 
-    private static Text blank() {
-        return Text.literal("");
+    private static Component blank() {
+        return Component.literal("");
     }
 
-    private static String dimension(ServerPlayerEntity player) {
-        String path = player.getWorld().getRegistryKey().getValue().getPath();
+    private static String dimension(ServerPlayer player) {
+        String path = player.level().dimension().identifier().getPath();
         return switch (path) {
             case "overworld" -> "Superficie";
             case "the_nether" -> "Nether";
@@ -151,8 +150,8 @@ public final class SidebarHud {
     }
 
     private static long currentDay(MinecraftServer server) {
-        ServerWorld overworld = server.getOverworld();
-        return overworld == null ? 1L : (overworld.getTimeOfDay() / 24000L) + 1L;
+        ServerLevel overworld = server.overworld();
+        return overworld == null ? 1L : (overworld.getDefaultClockTime() / 24000L) + 1L;
     }
 
     /** One stable holder per row, so a row is updated rather than duplicated. */
@@ -160,12 +159,12 @@ public final class SidebarHud {
         return "toque_line_" + index;
     }
 
-    private ScoreboardObjective objective(MinecraftServer server) {
+    private Objective objective(MinecraftServer server) {
         if (objective == null) {
-            objective = new ScoreboardObjective(server.getScoreboard(), OBJECTIVE_NAME,
-                    ScoreboardCriterion.DUMMY,
+            objective = new Objective(server.getScoreboard(), OBJECTIVE_NAME,
+                    ObjectiveCriteria.DUMMY,
                     Gradient.apply("☠ TOQUE HARDCORE ☠", Gradient.RED_FROM, Gradient.RED_TO, true),
-                    ScoreboardCriterion.RenderType.INTEGER, false, BlankNumberFormat.INSTANCE);
+                    ObjectiveCriteria.RenderType.INTEGER, false, BlankFormat.INSTANCE);
         }
         return objective;
     }

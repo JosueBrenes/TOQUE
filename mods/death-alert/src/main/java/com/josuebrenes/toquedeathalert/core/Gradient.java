@@ -1,9 +1,9 @@
 package com.josuebrenes.toquedeathalert.core;
 
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.text.TextColor;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 
 /**
  * Fades a line of text from one colour to another, a character at a time.
@@ -24,13 +24,13 @@ public final class Gradient {
     private Gradient() {
     }
 
-    public static MutableText apply(String text, int from, int to, boolean bold) {
-        MutableText result = Text.empty();
+    public static MutableComponent apply(String text, int from, int to, boolean bold) {
+        MutableComponent result = Component.empty();
         int last = Math.max(1, text.length() - 1);
 
         for (int i = 0; i < text.length(); i++) {
             int colour = blend(from, to, (float) i / last);
-            result.append(Text.literal(String.valueOf(text.charAt(i)))
+            result.append(Component.literal(String.valueOf(text.charAt(i)))
                     .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(colour)).withBold(bold)));
         }
         return result;

@@ -1,11 +1,10 @@
 package com.josuebrenes.toquedeathalert.tab;
 
-import net.minecraft.network.packet.s2c.play.PlayerListHeaderS2CPacket;
-import net.minecraft.network.packet.s2c.play.PlayerListS2CPacket;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
+import net.minecraft.network.protocol.game.ClientboundTabListPacket;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-
+import net.minecraft.server.level.ServerPlayer;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -38,7 +37,7 @@ public final class TabListService {
     }
 
     /** The text the mixin hands to the client for this player's row. */
-    public Text rowFor(ServerPlayerEntity player) {
+    public Component rowFor(ServerPlayer player) {
         return renderer.row(player);
     }
 
@@ -56,7 +55,7 @@ public final class TabListService {
 
     /** Keeps DAY and the online count current without spamming the packet. */
     private void resendBannerIfChanged(MinecraftServer server) {
-        if (server.getPlayerManager().getPlayerList().isEmpty()) {
+        if (server.getPlayerList().getPlayers().isEmpty()) {
             return;
         }
         String banner = renderer.header(server).getString() + renderer.footer(server).getString();
@@ -67,16 +66,16 @@ public final class TabListService {
     }
 
     private void broadcastChangedRows(MinecraftServer server) {
-        List<ServerPlayerEntity> online = server.getPlayerManager().getPlayerList();
+        List<ServerPlayer> online = server.getPlayerList().getPlayers();
         if (online.isEmpty()) {
             return;
         }
 
-        List<ServerPlayerEntity> changed = new ArrayList<>();
-        for (ServerPlayerEntity player : online) {
+        List<ServerPlayer> changed = new ArrayList<>();
+        for (ServerPlayer player : online) {
             String rendered = renderer.row(player).getString();
-            if (!rendered.equals(lastSent.get(player.getUuid()))) {
-                lastSent.put(player.getUuid(), rendered);
+            if (!rendered.equals(lastSent.get(player.getUUID()))) {
+                lastSent.put(player.getUUID(), rendered);
                 changed.add(player);
             }
         }
@@ -84,10 +83,10 @@ public final class TabListService {
             return;
         }
 
-        PlayerListS2CPacket packet = new PlayerListS2CPacket(
-                EnumSet.of(PlayerListS2CPacket.Action.UPDATE_DISPLAY_NAME), changed);
-        for (ServerPlayerEntity viewer : online) {
-            viewer.networkHandler.sendPacket(packet);
+        ClientboundPlayerInfoUpdatePacket packet = new ClientboundPlayerInfoUpdatePacket(
+                EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME), changed);
+        for (ServerPlayer viewer : online) {
+            viewer.connection.send(packet);
         }
     }
 
@@ -102,10 +101,10 @@ public final class TabListService {
     }
 
     public void sendHeaderAndFooter(MinecraftServer server) {
-        PlayerListHeaderS2CPacket packet =
-                new PlayerListHeaderS2CPacket(renderer.header(server), renderer.footer(server));
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            player.networkHandler.sendPacket(packet);
+        ClientboundTabListPacket packet =
+                new ClientboundTabListPacket(renderer.header(server), renderer.footer(server));
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            player.connection.send(packet);
         }
     }
 }

@@ -1,11 +1,11 @@
 package com.josuebrenes.toquemobspawner.config;
 
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.Level;
 
 /**
  * The whole configuration after validation. Immutable: a reload builds a new
@@ -35,7 +35,7 @@ public record SpawnSettings(boolean enabled,
 
     /** The first enabled zone holding this block. Zones earlier in the file win overlaps. */
     @Nullable
-    public Zone zoneAt(RegistryKey<World> world, int x, int y, int z) {
+    public Zone zoneAt(ResourceKey<Level> world, int x, int y, int z) {
         for (Zone zone : zones) {
             if (zone.enabled() && zone.contains(world, x, y, z)) {
                 return zone;
@@ -49,8 +49,8 @@ public record SpawnSettings(boolean enabled,
      * whose activation distance reaches them.
      */
     @Nullable
-    public Zone zoneFor(RegistryKey<World> world, double x, double y, double z) {
-        Zone inside = zoneAt(world, MathHelper.floor(x), MathHelper.floor(y), MathHelper.floor(z));
+    public Zone zoneFor(ResourceKey<Level> world, double x, double y, double z) {
+        Zone inside = zoneAt(world, Mth.floor(x), Mth.floor(y), Mth.floor(z));
         if (inside != null) {
             return inside;
         }

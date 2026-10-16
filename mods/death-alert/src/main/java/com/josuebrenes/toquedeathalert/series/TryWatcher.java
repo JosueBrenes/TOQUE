@@ -2,7 +2,7 @@ package com.josuebrenes.toquedeathalert.series;
 
 import com.josuebrenes.toquedeathalert.core.ToqueLog;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.server.level.ServerLevel;
 
 /**
  * Keeps the Try counter in step with Hardcore World Reset.
@@ -37,7 +37,7 @@ public final class TryWatcher {
 
     /** Reads the current seed and advances the Try when it has changed. */
     public void check(MinecraftServer server) {
-        ServerWorld overworld = server.getOverworld();
+        ServerLevel overworld = server.overworld();
         if (overworld == null) {
             return;
         }
