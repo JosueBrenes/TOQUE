@@ -4,10 +4,10 @@ import com.josuebrenes.toquedeathalert.ToqueDeathAlert;
 import com.josuebrenes.toquedeathalert.core.FontWidth;
 import com.josuebrenes.toquedeathalert.core.Gradient;
 import com.josuebrenes.toquedeathalert.series.SeriesStatsRepository;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
+import net.minecraft.server.level.ServerLevel;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -24,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
  * lines are measured in pixels rather than characters, because the font is
  * proportional and counting characters would leave them visibly off centre.
  *
- * <p>Rebuilt on every ping, so the Try, the day and the death count are current
+ * <p>Rebuilt on every ping, so the day and the death count are current
  * each time a player refreshes their list.
  */
 public final class StatusMotd {
@@ -32,16 +32,15 @@ public final class StatusMotd {
     private static final int MOTD_WIDTH_PX = 271;
 
     private static final String SKULL = "☠";
-    private static final String ARROW = "»";
 
     private static final long TICKS_PER_DAY = 24000L;
     private static final long TAGLINE_MILLIS = 4000L;
 
     private static final String[] TAGLINES = {
-            "UNA VIDA, UNA RUN",
-            "SOBREVIVE O REINICIA",
-            "¿CUÁNTO DURARÁS?",
-            "TODOS O NINGUNO"
+            "SOBREVIVE, EXPLORA, CONSTRUYE",
+            "CADA NOCHE CUENTA",
+            "¿CUÁNTO AGUANTARÁS?",
+            "MUERE Y VE POR TUS COSAS"
     };
 
     private StatusMotd() {
@@ -49,14 +48,14 @@ public final class StatusMotd {
 
     /** The replacement description, or null to leave the vanilla MOTD alone. */
     @Nullable
-    public static Text build(MinecraftServer server) {
+    public static Component build(MinecraftServer server) {
         SeriesStatsRepository stats = ToqueDeathAlert.runtime().stats();
         if (stats == null) {
             return null;
         }
 
         return centred(titleLine(server, stats), Gradient.RED_FROM, Gradient.RED_TO)
-                .append(Text.literal("\n"))
+                .append(Component.literal("\n"))
                 .append(centred(deathLine(stats), Gradient.GOLD_FROM, Gradient.GOLD_TO));
     }
 
@@ -68,14 +67,13 @@ public final class StatusMotd {
      * nothing else fitted beside it.
      */
     private static String titleLine(MinecraftServer server, SeriesStatsRepository stats) {
-        StringBuilder line = new StringBuilder(SKULL + " TOQUE HARDCORE [TRY #")
-                .append(stats.tryNumber());
+        StringBuilder line = new StringBuilder(SKULL + " TOQUE HARDCORE");
 
         long day = currentDay(server);
         if (day > 0L) {
-            line.append(' ').append(ARROW).append(" DÍA ").append(day);
+            line.append(" [DÍA ").append(day).append(']');
         }
-        return line.append("] ").append(SKULL).toString();
+        return line.append(' ').append(SKULL).toString();
     }
 
     /**
@@ -91,14 +89,14 @@ public final class StatusMotd {
     }
 
     /** Centres the line in the MOTD area and fades it from one colour to the other. */
-    private static MutableText centred(String text, int from, int to) {
-        return Text.literal(FontWidth.centre(text, MOTD_WIDTH_PX, true))
+    private static MutableComponent centred(String text, int from, int to) {
+        return Component.literal(FontWidth.centre(text, MOTD_WIDTH_PX, true))
                 .append(Gradient.apply(text, from, to, true));
     }
 
     private static long currentDay(MinecraftServer server) {
-        ServerWorld overworld = server.getOverworld();
-        return overworld == null ? -1L : (overworld.getTimeOfDay() / TICKS_PER_DAY) + 1L;
+        ServerLevel overworld = server.overworld();
+        return overworld == null ? -1L : (overworld.getDefaultClockTime() / TICKS_PER_DAY) + 1L;
     }
 
     private static String tagline() {

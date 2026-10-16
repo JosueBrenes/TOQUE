@@ -4,13 +4,12 @@ import com.josuebrenes.toquedeathalert.core.FontWidth;
 import com.josuebrenes.toquedeathalert.core.Gradient;
 import com.josuebrenes.toquedeathalert.role.PlayerRole;
 import com.josuebrenes.toquedeathalert.series.SeriesStatsRepository;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import java.util.Locale;
 
 /**
@@ -37,70 +36,70 @@ public final class TabRowRenderer {
         this.stats = stats;
     }
 
-    public Text row(ServerPlayerEntity player) {
-        int deaths = stats.deathsOf(player.getUuid());
+    public Component row(ServerPlayer player) {
+        int deaths = stats.deathsOf(player.getUUID());
 
-        String name = FontWidth.padTo(player.getGameProfile().getName(), NAME_COLUMN_PX);
+        String name = FontWidth.padTo(player.getGameProfile().name(), NAME_COLUMN_PX);
 
         PlayerRole role = PlayerRole.fromDeaths(deaths);
-        Text roleText = role.badge();
+        Component roleText = role.badge();
 
         String roleGap = FontWidth.spaces(
                 Math.max(4, ROLE_COLUMN_PX - FontWidth.of(roleText.getString()))
         );
 
-        Text health = HeartBar.render(player.getHealth(), player.getMaxHealth());
+        Component health = HeartBar.render(player.getHealth(), player.getMaxHealth());
         String healthGap = FontWidth.spaces(
                 Math.max(4, HEALTH_COLUMN_PX - FontWidth.of(health.getString()))
         );
 
-        return Text.literal(name).formatted(Formatting.WHITE)
+        return Component.literal(name).withStyle(ChatFormatting.WHITE)
                 .append(roleText)
-                .append(Text.literal(roleGap))
+                .append(Component.literal(roleGap))
                 .append(health)
-                .append(Text.literal(healthGap))
-                .append(deaths(stats.deathsOf(player.getUuid())));
+                .append(Component.literal(healthGap))
+                .append(deaths(stats.deathsOf(player.getUUID())));
     }
 
     /** The name, then where the series stands, in the same shape as the server list. */
-    public Text header(MinecraftServer server) {
-        MutableText progress = Text.literal("TRY #" + stats.tryNumber()).formatted(Formatting.GOLD);
+    public Component header(MinecraftServer server) {
+        MutableComponent progress = Component.empty();
 
         long day = currentDay(server);
         if (day > 0L) {
-            progress.append(separator())
-                    .append(Text.literal("DÍA " + day).formatted(Formatting.YELLOW));
+            progress.append(Component.literal("DÍA " + day).withStyle(ChatFormatting.GOLD))
+                    .append(separator());
         }
-        progress.append(separator()).append(deaths(stats.totalDeaths()));
+        progress.append(deaths(stats.totalDeaths()));
 
-        return Text.literal("\n")
+        return Component.literal("\n")
                 .append(Gradient.apply(SKULL + " TOQUE HARDCORE " + SKULL,
                         Gradient.RED_FROM, Gradient.RED_TO, true))
-                .append(Text.literal("\n"))
+                .append(Component.literal("\n"))
                 .append(progress)
-                .append(Text.literal("\n"));
+                .append(Component.literal("\n"));
     }
 
-    public Text footer(MinecraftServer server) {
-        return Text.literal("\n")
+    public Component footer(MinecraftServer server) {
+        return Component.literal("\n")
                 .append(Gradient.apply(stats.objective().toUpperCase(Locale.ROOT),
                         Gradient.GOLD_FROM, Gradient.GOLD_TO, true))
-                .append(Text.literal("\n"));
+                .append(Component.literal("\n"));
     }
 
-    /** Current day of the world this Try is running in. */
+    /** Current day of the world. */
     private static long currentDay(MinecraftServer server) {
-        ServerWorld overworld = server.getOverworld();
-        return overworld == null ? -1L : (overworld.getTimeOfDay() / TICKS_PER_DAY) + 1L;
+        ServerLevel overworld = server.overworld();
+        return overworld == null ? -1L : (overworld.getDefaultClockTime() / TICKS_PER_DAY) + 1L;
     }
 
-    private static Text separator() {
-        return Text.literal(SEPARATOR).formatted(Formatting.DARK_GRAY);
+    private static Component separator() {
+        return Component.literal(SEPARATOR).withStyle(ChatFormatting.DARK_GRAY);
     }
 
-    private static Text deaths(int count) {
-        MutableText text = Text.literal(SKULL + " ").formatted(Formatting.DARK_RED);
-        return text.append(Text.literal(Integer.toString(count))
-                .formatted(count == 0 ? Formatting.GREEN : Formatting.RED));
+    private static Component deaths(int count) {
+        MutableComponent text = Component.literal(SKULL + " ").withStyle(ChatFormatting.DARK_RED);
+        return text.append(Component.literal(Integer.toString(count))
+                .withStyle(count == 0 ? ChatFormatting.GREEN : ChatFormatting.RED));
     }
 }

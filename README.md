@@ -4,17 +4,17 @@
 [![Latest build](https://img.shields.io/github/actions/workflow/status/JosueBrenes/TOQUE/build.yml?branch=main&label=jars&logo=github)](https://github.com/JosueBrenes/TOQUE/actions/workflows/build.yml)
 [![Last commit](https://img.shields.io/github/last-commit/JosueBrenes/TOQUE?logo=git&logoColor=white)](https://github.com/JosueBrenes/TOQUE/commits/main)
 
-![Minecraft 1.21.1](https://img.shields.io/badge/Minecraft-1.21.1-62B47A?logo=minecraft&logoColor=white)
+![Minecraft 26.3](https://img.shields.io/badge/Minecraft-26.3-62B47A?logo=minecraft&logoColor=white)
 ![Fabric Loader 0.19.5](https://img.shields.io/badge/Fabric%20Loader-0.19.5-DBD0B4)
-![Fabric API 0.116.17](https://img.shields.io/badge/Fabric%20API-0.116.17-DBD0B4)
-![Java 21](https://img.shields.io/badge/Java-21-E76F00?logo=openjdk&logoColor=white)
-![Gradle 8.10.2](https://img.shields.io/badge/Gradle-8.10.2-02303A?logo=gradle&logoColor=white)
+![Fabric API 0.162.0](https://img.shields.io/badge/Fabric%20API-0.162.0-DBD0B4)
+![Java 25](https://img.shields.io/badge/Java-25-E76F00?logo=openjdk&logoColor=white)
+![Gradle 9.7.1](https://img.shields.io/badge/Gradle-9.7.1-02303A?logo=gradle&logoColor=white)
 
-> One death wipes the world. The counters do not.
+> Die, respawn, go get your things. The counters remember.
 
-Three Fabric mods for the **TOQUE Hardcore** series: a Minecraft run where a single
-death erases the world and starts the next Try, while every player's death count
-carries on across the whole series.
+Three Fabric mods for the **TOQUE Hardcore** series: a hardcore survival server
+where a death is not the end: the player respawns and goes back for their things,
+while every player's death count carries on across the whole series.
 
 | | |
 |---|---|
@@ -48,7 +48,7 @@ from the root, so the two mods cannot drift apart.
 
 ## Building
 
-Nothing to install but a JDK 21: the Gradle wrapper handles the rest.
+Nothing to install but a JDK 25: the Gradle wrapper handles the rest.
 
 ```bash
 ./gradlew build            # every mod

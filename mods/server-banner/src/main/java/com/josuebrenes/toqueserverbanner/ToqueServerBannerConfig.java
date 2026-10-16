@@ -5,7 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.network.ServerInfo;
+import net.minecraft.client.multiplayer.ServerData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,18 +99,18 @@ public final class ToqueServerBannerConfig {
      * banner that does not show up can be traced to the address it actually has
      * rather than guessed at.
      */
-    public static boolean matches(ServerInfo server) {
+    public static boolean matches(ServerData server) {
         if (server == null) {
             return false;
         }
-        String address = normalise(server.address);
+        String address = normalise(server.ip);
         String name = server.name == null ? "" : server.name.trim().toLowerCase(Locale.ROOT);
         boolean matched = matchesAddress(address) || matchesName(name);
 
         String key = name + "\u0000" + address;
         if (reported.add(key)) {
             LOGGER.info("[TOQUE] Server list entry name='{}' address='{}' -> banner {}.",
-                    server.name, server.address, matched ? "ON" : "off");
+                    server.name, server.ip, matched ? "ON" : "off");
         }
         return matched;
     }

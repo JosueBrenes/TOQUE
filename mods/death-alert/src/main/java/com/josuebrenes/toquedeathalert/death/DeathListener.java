@@ -6,11 +6,11 @@ import com.josuebrenes.toquedeathalert.series.PlayerDeathRecord;
 import com.josuebrenes.toquedeathalert.series.SeriesStatsRepository;
 import com.josuebrenes.toquedeathalert.tab.TabListService;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.item.Items;
-import net.minecraft.registry.tag.DamageTypeTags;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.item.Items;
 
 /**
  * The single place a death is detected and counted.
@@ -30,7 +30,7 @@ public final class DeathListener {
 
     public void register() {
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, damageAmount) -> {
-            if (entity instanceof ServerPlayerEntity player) {
+            if (entity instanceof ServerPlayer player) {
                 onFatalDamage(player, damageSource);
             }
             // Never cancel the death. Hardcore World Reset still handles it.
@@ -38,8 +38,8 @@ public final class DeathListener {
         });
     }
 
-    private void onFatalDamage(ServerPlayerEntity player, DamageSource damageSource) {
-        MinecraftServer server = player.getServer();
+    private void onFatalDamage(ServerPlayer player, DamageSource damageSource) {
+        MinecraftServer server = player.level().getServer();
         if (server == null || isSavedByTotem(player, damageSource)) {
             return;
         }
@@ -49,13 +49,13 @@ public final class DeathListener {
         SeriesStatsRepository stats = runtime.stats();
         if (stats != null) {
             PlayerDeathRecord record =
-                    stats.addDeath(player.getUuid(), player.getGameProfile().getName());
+                    stats.addDeath(player.getUUID(), player.getGameProfile().name());
             ToqueLog.info("Series deaths for {}: {}", record.displayName(), record.deaths());
         }
 
         TabListService tabList = runtime.tabList();
         if (tabList != null) {
-            tabList.invalidate(player.getUuid());
+            tabList.invalidate(player.getUUID());
         }
 
         announcer.announce(server, player);
@@ -67,11 +67,11 @@ public final class DeathListener {
      * invulnerability (for example /kill or the void). A player saved this way
      * is neither announced nor counted.
      */
-    private static boolean isSavedByTotem(ServerPlayerEntity player, DamageSource damageSource) {
-        if (damageSource.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+    private static boolean isSavedByTotem(ServerPlayer player, DamageSource damageSource) {
+        if (damageSource.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
             return false;
         }
-        return player.getMainHandStack().isOf(Items.TOTEM_OF_UNDYING)
-                || player.getOffHandStack().isOf(Items.TOTEM_OF_UNDYING);
+        return player.getMainHandItem().is(Items.TOTEM_OF_UNDYING)
+                || player.getOffhandItem().is(Items.TOTEM_OF_UNDYING);
     }
 }

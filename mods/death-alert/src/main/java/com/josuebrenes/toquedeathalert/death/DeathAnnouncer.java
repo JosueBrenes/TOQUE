@@ -2,42 +2,45 @@ package com.josuebrenes.toquedeathalert.death;
 
 import com.josuebrenes.toquedeathalert.ToqueDeathAlert;
 import com.josuebrenes.toquedeathalert.role.PlayerRole;
-import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
-import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
-import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.Holder;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 
-/** Shows the TOQUE death title to everyone and plays the series sound. */
+/** Shows the TOQUE death title to everyone and plays the series sound; the player respawns afterwards. */
 public final class DeathAnnouncer {
-    private static final SoundEvent DEATH_SOUND = SoundEvent.of(Identifier.of("toque", "death"));
+    private static final SoundEvent DEATH_SOUND = SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath("toque", "death"));
     private static final String SKULL = "☠";
 
-    public void announce(MinecraftServer server, ServerPlayerEntity deadPlayer) {
+    public void announce(MinecraftServer server, ServerPlayer deadPlayer) {
         int deaths = ToqueDeathAlert.runtime().stats() == null
                 ? 0
-                : ToqueDeathAlert.runtime().stats().deathsOf(deadPlayer.getUuid());
+                : ToqueDeathAlert.runtime().stats().deathsOf(deadPlayer.getUUID());
         PlayerRole role = PlayerRole.fromDeaths(deaths);
 
-        Text title = Text.literal(SKULL + " ")
-                .formatted(Formatting.DARK_RED, Formatting.BOLD)
-                .append(deadPlayer.getName().copy().formatted(Formatting.RED, Formatting.BOLD))
-                .append(Text.literal(" HA MUERTO " + SKULL).formatted(Formatting.DARK_RED, Formatting.BOLD));
+        Component title = Component.literal(SKULL + " ")
+                .withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD)
+                .append(deadPlayer.getName().copy().withStyle(ChatFormatting.RED, ChatFormatting.BOLD))
+                .append(Component.literal(" HA MUERTO " + SKULL).withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD));
 
-        Text subtitle = role.badge()
-                .append(Text.literal("  •  LA RUN HA TERMINADO")
-                        .formatted(Formatting.RED, Formatting.BOLD));
+        Component subtitle = role.badge()
+                .append(Component.literal("  •  VE POR TUS COSAS")
+                        .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
 
-        for (ServerPlayerEntity viewer : server.getPlayerManager().getPlayerList()) {
-            viewer.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 80, 10));
-            viewer.networkHandler.sendPacket(new TitleS2CPacket(title));
-            viewer.networkHandler.sendPacket(new SubtitleS2CPacket(subtitle));
-            viewer.playSoundToPlayer(DEATH_SOUND, SoundCategory.MASTER, 10.0F, 1.0F);
+        for (ServerPlayer viewer : server.getPlayerList().getPlayers()) {
+            viewer.connection.send(new ClientboundSetTitlesAnimationPacket(5, 80, 10));
+            viewer.connection.send(new ClientboundSetTitleTextPacket(title));
+            viewer.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));
+            viewer.connection.send(new ClientboundSoundPacket(Holder.direct(DEATH_SOUND), SoundSource.MASTER,
+                    viewer.getX(), viewer.getY(), viewer.getZ(), 10.0F, 1.0F, viewer.getRandom().nextLong()));
         }
     }
 }

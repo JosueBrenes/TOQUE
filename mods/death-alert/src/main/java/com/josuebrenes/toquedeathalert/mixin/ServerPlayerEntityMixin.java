@@ -2,8 +2,8 @@ package com.josuebrenes.toquedeathalert.mixin;
 
 import com.josuebrenes.toquedeathalert.ToqueDeathAlert;
 import com.josuebrenes.toquedeathalert.tab.TabListService;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -16,14 +16,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *
  * <p>Read-only: this never touches the death counters.
  */
-@Mixin(ServerPlayerEntity.class)
+@Mixin(ServerPlayer.class)
 public abstract class ServerPlayerEntityMixin {
-    @Inject(method = "getPlayerListName", at = @At("HEAD"), cancellable = true)
-    private void toque$playerListName(CallbackInfoReturnable<Text> cir) {
+    @Inject(method = "getTabListDisplayName", at = @At("HEAD"), cancellable = true)
+    private void toque$playerListName(CallbackInfoReturnable<Component> cir) {
         TabListService tabList = ToqueDeathAlert.runtime().tabList();
         if (tabList == null) {
             return;
         }
-        cir.setReturnValue(tabList.rowFor((ServerPlayerEntity) (Object) this));
+        cir.setReturnValue(tabList.rowFor((ServerPlayer) (Object) this));
     }
 }

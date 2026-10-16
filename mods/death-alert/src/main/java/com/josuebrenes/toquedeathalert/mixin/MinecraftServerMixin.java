@@ -1,9 +1,9 @@
 package com.josuebrenes.toquedeathalert.mixin;
 
 import com.josuebrenes.toquedeathalert.status.StatusMotd;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.status.ServerStatus;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.ServerMetadata;
-import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -22,17 +22,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(MinecraftServer.class)
 public abstract class MinecraftServerMixin {
-    @Inject(method = "getServerMetadata", at = @At("RETURN"), cancellable = true)
-    private void toque$describeSeries(CallbackInfoReturnable<ServerMetadata> cir) {
-        ServerMetadata original = cir.getReturnValue();
+    @Inject(method = "getStatus", at = @At("RETURN"), cancellable = true)
+    private void toque$describeSeries(CallbackInfoReturnable<ServerStatus> cir) {
+        ServerStatus original = cir.getReturnValue();
         if (original == null) {
             return;
         }
-        Text description = StatusMotd.build((MinecraftServer) (Object) this);
+        Component description = StatusMotd.build((MinecraftServer) (Object) this);
         if (description == null) {
             return;
         }
-        cir.setReturnValue(new ServerMetadata(description, original.players(),
-                original.version(), original.favicon(), original.secureChatEnforced()));
+        cir.setReturnValue(new ServerStatus(description, original.players(),
+                original.version(), original.favicon(), original.enforcesSecureChat()));
     }
 }

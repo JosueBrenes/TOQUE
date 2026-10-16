@@ -10,15 +10,15 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
 import java.util.Comparator;
 import java.util.List;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.permissions.PermissionCheck;
 
 /**
  * The {@code /toque} command tree.
@@ -28,7 +28,7 @@ import java.util.List;
  * execution time rather than capturing them here.
  */
 public final class ToqueCommands {
-    private static final int ADMIN_LEVEL = 2;
+    private static final PermissionCheck ADMIN_LEVEL = Commands.LEVEL_GAMEMASTERS;
     private static final String SKULL = "☠";
 
     private final ToqueRuntime runtime;
@@ -37,84 +37,84 @@ public final class ToqueCommands {
         this.runtime = runtime;
     }
 
-    public void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-        dispatcher.register(CommandManager.literal("toque")
-                .then(CommandManager.literal("deaths")
+    public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        dispatcher.register(Commands.literal("toque")
+                .then(Commands.literal("deaths")
                         .executes(this::listDeaths))
-                .then(CommandManager.literal("status")
-                        .requires(source -> source.hasPermissionLevel(ADMIN_LEVEL))
+                .then(Commands.literal("status")
+                        .requires(Commands.hasPermission(ADMIN_LEVEL))
                         .executes(context -> status(context, context.getSource().getPlayer()))
-                        .then(CommandManager.argument("player", EntityArgumentType.player())
+                        .then(Commands.argument("player", EntityArgument.player())
                                 .executes(context -> status(context,
-                                        EntityArgumentType.getPlayer(context, "player")))))
-                .then(CommandManager.literal("set")
-                        .requires(source -> source.hasPermissionLevel(ADMIN_LEVEL))
-                        .then(CommandManager.argument("player", EntityArgumentType.player())
-                                .then(CommandManager.argument("deaths", IntegerArgumentType.integer(0))
+                                        EntityArgument.getPlayer(context, "player")))))
+                .then(Commands.literal("set")
+                        .requires(Commands.hasPermission(ADMIN_LEVEL))
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .then(Commands.argument("deaths", IntegerArgumentType.integer(0))
                                         .executes(this::setDeaths))))
-                .then(CommandManager.literal("import")
-                        .requires(source -> source.hasPermissionLevel(ADMIN_LEVEL))
-                        .then(CommandManager.argument("player", EntityArgumentType.player())
+                .then(Commands.literal("import")
+                        .requires(Commands.hasPermission(ADMIN_LEVEL))
+                        .then(Commands.argument("player", EntityArgument.player())
                                 .executes(this::importDeaths)))
-                .then(CommandManager.literal("objective")
-                        .requires(source -> source.hasPermissionLevel(ADMIN_LEVEL))
-                        .then(CommandManager.argument("text", StringArgumentType.greedyString())
+                .then(Commands.literal("objective")
+                        .requires(Commands.hasPermission(ADMIN_LEVEL))
+                        .then(Commands.argument("text", StringArgumentType.greedyString())
                                 .executes(this::setObjective)))
-                .then(CommandManager.literal("try")
-                        .requires(source -> source.hasPermissionLevel(ADMIN_LEVEL))
-                        .then(CommandManager.argument("number", IntegerArgumentType.integer(1))
+                .then(Commands.literal("try")
+                        .requires(Commands.hasPermission(ADMIN_LEVEL))
+                        .then(Commands.argument("number", IntegerArgumentType.integer(1))
                                 .executes(this::setTry)))
-                .then(CommandManager.literal("resetDeaths")
-                        .requires(source -> source.hasPermissionLevel(ADMIN_LEVEL))
+                .then(Commands.literal("resetDeaths")
+                        .requires(Commands.hasPermission(ADMIN_LEVEL))
                         .executes(this::resetSeries)));
     }
 
-    private int listDeaths(CommandContext<ServerCommandSource> context) {
+    private int listDeaths(CommandContext<CommandSourceStack> context) {
         ToqueRuntime.Services services = require(context);
         if (services == null) {
             return 0;
         }
-        ServerCommandSource source = context.getSource();
+        CommandSourceStack source = context.getSource();
 
-        source.sendFeedback(() -> Text.literal(SKULL + " TOQUE — Serie #"
-                + services.stats().seriesNumber()).formatted(Formatting.RED, Formatting.BOLD), false);
+        source.sendSuccess(() -> Component.literal(SKULL + " TOQUE — Serie #"
+                + services.stats().seriesNumber()).withStyle(ChatFormatting.RED, ChatFormatting.BOLD), false);
 
         List<PlayerDeathRecord> records = services.stats().all().stream()
                 .sorted(Comparator.comparingInt(PlayerDeathRecord::deaths).reversed())
                 .toList();
 
         if (records.isEmpty()) {
-            source.sendFeedback(() -> Text.literal("Sin muertes registradas.")
-                    .formatted(Formatting.GRAY), false);
+            source.sendSuccess(() -> Component.literal("Sin muertes registradas.")
+                    .withStyle(ChatFormatting.GRAY), false);
             return 0;
         }
         for (PlayerDeathRecord record : records) {
             PlayerRole role = PlayerRole.fromDeaths(record.deaths());
-            source.sendFeedback(() -> Text.literal(record.displayName() + " ").formatted(Formatting.WHITE)
+            source.sendSuccess(() -> Component.literal(record.displayName() + " ").withStyle(ChatFormatting.WHITE)
                     .append(role.badge())
-                    .append(Text.literal("  " + SKULL + " " + record.deaths()).formatted(Formatting.RED)), false);
+                    .append(Component.literal("  " + SKULL + " " + record.deaths()).withStyle(ChatFormatting.RED)), false);
         }
         return records.size();
     }
 
     /** Diagnostics: what TOQUE stored, what vanilla says, and where the file lives. */
-    private int status(CommandContext<ServerCommandSource> context, ServerPlayerEntity player) {
+    private int status(CommandContext<CommandSourceStack> context, ServerPlayer player) {
         ToqueRuntime.Services services = require(context);
         if (services == null || player == null) {
             return 0;
         }
-        ServerCommandSource source = context.getSource();
-        PlayerDeathRecord record = services.stats().find(player.getUuid())
-                .orElseGet(() -> PlayerDeathRecord.fresh(player.getUuid(), player.getGameProfile().getName()));
+        CommandSourceStack source = context.getSource();
+        PlayerDeathRecord record = services.stats().find(player.getUUID())
+                .orElseGet(() -> PlayerDeathRecord.fresh(player.getUUID(), player.getGameProfile().name()));
         VanillaDeathsLookup.Result vanilla = services.importer().lookup()
-                .lookup(source.getServer(), player.getUuid(), player);
+                .lookup(source.getServer(), player.getUUID(), player);
 
         line(source, "Archivo", services.stats().file().toString());
         line(source, "Serie", "#" + services.stats().seriesNumber());
         line(source, "Try", "#" + services.stats().tryNumber());
         line(source, "Objetivo", services.stats().objective());
         line(source, "Import vanilla abierto", Boolean.toString(services.stats().isVanillaImportOpen()));
-        line(source, "Jugador", record.displayName() + " (" + player.getUuid() + ")");
+        line(source, "Jugador", record.displayName() + " (" + player.getUUID() + ")");
         line(source, "Muertes TOQUE", Integer.toString(record.deaths()));
         line(source, "Rol", PlayerRole.fromDeaths(record.deaths()).plain());
         line(source, "Ya migrado", Boolean.toString(record.migrated()));
@@ -122,41 +122,41 @@ public final class ToqueCommands {
         return 1;
     }
 
-    private int setDeaths(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private int setDeaths(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ToqueRuntime.Services services = require(context);
         if (services == null) {
             return 0;
         }
-        ServerPlayerEntity player = EntityArgumentType.getPlayer(context, "player");
+        ServerPlayer player = EntityArgument.getPlayer(context, "player");
         int deaths = IntegerArgumentType.getInteger(context, "deaths");
 
-        services.stats().setDeaths(player.getUuid(), player.getGameProfile().getName(), deaths);
-        services.tabList().invalidate(player.getUuid());
+        services.stats().setDeaths(player.getUUID(), player.getGameProfile().name(), deaths);
+        services.tabList().invalidate(player.getUUID());
 
-        context.getSource().sendFeedback(() -> Text.literal(SKULL + " "
-                + player.getGameProfile().getName() + " queda en " + deaths + " muertes.")
-                .formatted(Formatting.RED), true);
-        ToqueLog.info("Admin set deaths for {} to {}.", player.getGameProfile().getName(), deaths);
+        context.getSource().sendSuccess(() -> Component.literal(SKULL + " "
+                + player.getGameProfile().name() + " queda en " + deaths + " muertes.")
+                .withStyle(ChatFormatting.RED), true);
+        ToqueLog.info("Admin set deaths for {} to {}.", player.getGameProfile().name(), deaths);
         return deaths;
     }
 
-    private int importDeaths(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private int importDeaths(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ToqueRuntime.Services services = require(context);
         if (services == null) {
             return 0;
         }
-        ServerPlayerEntity player = EntityArgumentType.getPlayer(context, "player");
+        ServerPlayer player = EntityArgument.getPlayer(context, "player");
         int starting = services.importer().forceImport(context.getSource().getServer(), player);
-        services.tabList().invalidate(player.getUuid());
+        services.tabList().invalidate(player.getUUID());
 
-        context.getSource().sendFeedback(() -> Text.literal(SKULL + " "
-                + player.getGameProfile().getName() + " importado desde vanilla: "
-                + starting + " muertes.").formatted(Formatting.RED), true);
+        context.getSource().sendSuccess(() -> Component.literal(SKULL + " "
+                + player.getGameProfile().name() + " importado desde vanilla: "
+                + starting + " muertes.").withStyle(ChatFormatting.RED), true);
         return starting;
     }
 
     /** The objective line shown at the bottom of the player list. */
-    private int setObjective(CommandContext<ServerCommandSource> context) {
+    private int setObjective(CommandContext<CommandSourceStack> context) {
         ToqueRuntime.Services services = require(context);
         if (services == null) {
             return 0;
@@ -166,14 +166,14 @@ public final class ToqueCommands {
         services.tabList().invalidateAll();
         services.tabList().sendHeaderAndFooter(context.getSource().getServer());
 
-        context.getSource().sendFeedback(() -> Text.literal(SKULL + " Objetivo: " + objective)
-                .formatted(Formatting.GOLD), true);
+        context.getSource().sendSuccess(() -> Component.literal(SKULL + " Objetivo: " + objective)
+                .withStyle(ChatFormatting.GOLD), true);
         ToqueLog.info("Objective set to: {}", objective);
         return 1;
     }
 
     /** Manual correction, for when the Try counter and the real series disagree. */
-    private int setTry(CommandContext<ServerCommandSource> context) {
+    private int setTry(CommandContext<CommandSourceStack> context) {
         ToqueRuntime.Services services = require(context);
         if (services == null) {
             return 0;
@@ -183,13 +183,13 @@ public final class ToqueCommands {
         services.tabList().invalidateAll();
         services.tabList().sendHeaderAndFooter(context.getSource().getServer());
 
-        context.getSource().sendFeedback(() -> Text.literal(SKULL + " Try #" + number + ".")
-                .formatted(Formatting.GOLD), true);
+        context.getSource().sendSuccess(() -> Component.literal(SKULL + " Try #" + number + ".")
+                .withStyle(ChatFormatting.GOLD), true);
         ToqueLog.info("Try counter set to #{}", number);
         return number;
     }
 
-    private int resetSeries(CommandContext<ServerCommandSource> context) {
+    private int resetSeries(CommandContext<CommandSourceStack> context) {
         ToqueRuntime.Services services = require(context);
         if (services == null) {
             return 0;
@@ -202,22 +202,22 @@ public final class ToqueCommands {
         services.tabList().sendHeaderAndFooter(context.getSource().getServer());
 
         int series = services.stats().seriesNumber();
-        context.getSource().sendFeedback(() -> Text.literal(SKULL + " Nueva serie iniciada (#"
-                + series + "). Muertes reiniciadas a 0.").formatted(Formatting.RED, Formatting.BOLD), true);
+        context.getSource().sendSuccess(() -> Component.literal(SKULL + " Nueva serie iniciada (#"
+                + series + "). Muertes reiniciadas a 0.").withStyle(ChatFormatting.RED, ChatFormatting.BOLD), true);
         ToqueLog.info("Death counters reset. New series: #{}", series);
         return 1;
     }
 
-    private ToqueRuntime.Services require(CommandContext<ServerCommandSource> context) {
+    private ToqueRuntime.Services require(CommandContext<CommandSourceStack> context) {
         ToqueRuntime.Services services = runtime.services();
         if (services == null) {
-            context.getSource().sendError(Text.literal("TOQUE aun no esta listo."));
+            context.getSource().sendFailure(Component.literal("TOQUE aun no esta listo."));
         }
         return services;
     }
 
-    private static void line(ServerCommandSource source, String label, String value) {
-        source.sendFeedback(() -> Text.literal(label + ": ").formatted(Formatting.GRAY)
-                .append(Text.literal(value).formatted(Formatting.WHITE)), false);
+    private static void line(CommandSourceStack source, String label, String value) {
+        source.sendSuccess(() -> Component.literal(label + ": ").withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(value).withStyle(ChatFormatting.WHITE)), false);
     }
 }

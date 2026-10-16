@@ -5,9 +5,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.josuebrenes.toquedeathalert.core.ToqueLog;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.stat.Stats;
-
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.stats.Stats;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
@@ -35,13 +34,13 @@ public final class VanillaDeathsLookup {
     public record Result(int deaths, String origin) {
     }
 
-    public Result lookup(MinecraftServer server, UUID uuid, ServerPlayerEntity player) {
-        int live = player == null ? 0 : player.getStatHandler().getStat(Stats.CUSTOM, Stats.DEATHS);
+    public Result lookup(MinecraftServer server, UUID uuid, ServerPlayer player) {
+        int live = player == null ? 0 : player.getStats().getValue(Stats.CUSTOM, Stats.DEATHS);
         if (live > 0) {
             return new Result(live, "live stat handler");
         }
 
-        DiskHit onDisk = searchStatsFiles(server.getRunDirectory(), uuid);
+        DiskHit onDisk = searchStatsFiles(server.getServerDirectory(), uuid);
         if (onDisk != null && onDisk.deaths() > live) {
             return new Result(onDisk.deaths(), "stats file " + onDisk.path());
         }

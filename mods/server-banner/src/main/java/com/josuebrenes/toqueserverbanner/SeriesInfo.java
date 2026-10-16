@@ -1,9 +1,8 @@
 package com.josuebrenes.toqueserverbanner;
 
-import net.minecraft.client.network.ServerInfo;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.minecraft.client.multiplayer.ServerData;
 
 /**
  * The Try and day numbers shown on the banner.
@@ -25,11 +24,11 @@ public record SeriesInfo(int tryNumber, int day) {
     private static final Pattern DAY_PATTERN =
             Pattern.compile("(?:D[IÍ]A|DAY)\\s*#?\\s*(\\d{1,5})", Pattern.CASE_INSENSITIVE);
 
-    public static SeriesInfo from(ServerInfo server) {
-        if (server == null || server.label == null) {
+    public static SeriesInfo from(ServerData server) {
+        if (server == null || server.motd == null) {
             return UNKNOWN;
         }
-        String motd = server.label.getString();
+        String motd = server.motd.getString();
         return new SeriesInfo(match(TRY_PATTERN, motd), match(DAY_PATTERN, motd));
     }
 

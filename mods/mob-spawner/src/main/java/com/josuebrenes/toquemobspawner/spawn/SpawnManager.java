@@ -4,13 +4,12 @@ import com.josuebrenes.toquemobspawner.Log;
 import com.josuebrenes.toquemobspawner.config.ConfigManager;
 import com.josuebrenes.toquemobspawner.config.SpawnSettings;
 import com.josuebrenes.toquemobspawner.config.Zone;
-import net.minecraft.entity.EntityType;
-import net.minecraft.registry.Registries;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.world.GameRules;
-
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.level.gamerules.GameRules;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -80,32 +79,32 @@ public final class SpawnManager {
         ticksUntilCheck = settings.spawnCheckIntervalTicks();
 
         updatePlayerZones(server, settings);
-        tracker.removeIf(mob -> mob.getWorld() instanceof ServerWorld world
-                && !world.isPlayerInRange(mob.getX(), mob.getY(), mob.getZ(), settings.despawnDistance()));
+        tracker.removeIf(mob -> mob.level() instanceof ServerLevel world
+                && !world.hasNearbyAlivePlayer(mob.getX(), mob.getY(), mob.getZ(), settings.despawnDistance()));
 
         if (!settings.enabled() || settings.zones().isEmpty()) {
             return;
         }
         Map<String, Integer> zoneCounts = tracker.countByZone(settings.zones());
-        for (ServerWorld world : server.getWorlds()) {
-            if (world.getGameRules().getBoolean(GameRules.DO_MOB_SPAWNING)) {
+        for (ServerLevel world : server.getAllLevels()) {
+            if (world.getGameRules().get(GameRules.SPAWN_MOBS)) {
                 spawnIn(world, settings, zoneCounts);
             }
         }
     }
 
-    private void spawnIn(ServerWorld world, SpawnSettings settings, Map<String, Integer> zoneCounts) {
-        List<ServerPlayerEntity> players = new ArrayList<>(world.getPlayers());
+    private void spawnIn(ServerLevel world, SpawnSettings settings, Map<String, Integer> zoneCounts) {
+        List<ServerPlayer> players = new ArrayList<>(world.players());
         // Shuffled so that, when a cap is nearly full, the same player is not
         // always the one who gets the last mobs.
         Collections.shuffle(players, new java.util.Random(world.getRandom().nextLong()));
 
         Set<String> filledBoxes = new HashSet<>();
-        for (ServerPlayerEntity player : players) {
+        for (ServerPlayer player : players) {
             if (player.isSpectator() || !player.isAlive()) {
                 continue;
             }
-            Zone zone = settings.zoneFor(world.getRegistryKey(), player.getX(), player.getY(), player.getZ());
+            Zone zone = settings.zoneFor(world.dimension(), player.getX(), player.getY(), player.getZ());
             if (zone == null || !zone.isActive()) {
                 continue;
             }
@@ -138,13 +137,13 @@ public final class SpawnManager {
                 } else if (outcome == SpawnUtils.Outcome.NOT_A_MOB) {
                     rejected.add(type);
                     Log.warn("Entity {} in zone '{}' is not a mob and cannot be spawned; skipping it until the next reload.",
-                            Registries.ENTITY_TYPE.getId(type), zone.name());
+                            BuiltInRegistries.ENTITY_TYPE.getKey(type), zone.name());
                 }
             }
         }
     }
 
-    private EntityType<?> pick(Zone zone, ServerWorld world) {
+    private EntityType<?> pick(Zone zone, ServerLevel world) {
         List<EntityType<?>> usable = zone.mobs();
         if (!rejected.isEmpty()) {
             usable = usable.stream().filter(type -> !rejected.contains(type)).toList();
@@ -155,18 +154,18 @@ public final class SpawnManager {
     /** Logs players entering and leaving zones, once per change rather than per check. */
     private void updatePlayerZones(MinecraftServer server, SpawnSettings settings) {
         Set<UUID> online = new HashSet<>();
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            UUID id = player.getUuid();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            UUID id = player.getUUID();
             online.add(id);
-            Zone zone = settings.zoneFor(player.getWorld().getRegistryKey(),
+            Zone zone = settings.zoneFor(player.level().dimension(),
                     player.getX(), player.getY(), player.getZ());
             String now = zone == null ? null : zone.name();
             String before = playerZones.get(id);
             if (now != null && !now.equals(before)) {
-                Log.info("Player {} entered zone: {}", player.getGameProfile().getName(), now);
+                Log.info("Player {} entered zone: {}", player.getGameProfile().name(), now);
                 playerZones.put(id, now);
             } else if (now == null && before != null) {
-                Log.info("Player {} left zone: {}", player.getGameProfile().getName(), before);
+                Log.info("Player {} left zone: {}", player.getGameProfile().name(), before);
                 playerZones.remove(id);
             }
         }

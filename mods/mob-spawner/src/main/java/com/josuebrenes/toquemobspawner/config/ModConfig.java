@@ -40,6 +40,16 @@ public final class ModConfig {
     /** An extra mob with no player within this many blocks is removed. */
     public int despawnDistance = 64;
 
+    /**
+     * Hostile mobs everywhere, not only in zones. Damage multiplies every hit a
+     * player takes from a hostile mob or its arrow or blast; health multiplies
+     * every hostile mob's maximum health; the cap multiplies how many hostiles
+     * vanilla keeps around the players. 1.0 leaves vanilla untouched.
+     */
+    public double mobDamageMultiplier = 1.5;
+    public double mobHealthMultiplier = 1.5;
+    public double monsterCapMultiplier = 2.0;
+
     public List<ZoneConfig> zones = new ArrayList<>();
 
     public static final class ZoneConfig {

@@ -11,20 +11,20 @@ import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.context.CommandContext;
-import net.minecraft.command.CommandSource;
-import net.minecraft.command.argument.BlockPosArgumentType;
-import net.minecraft.entity.EntityType;
-import net.minecraft.registry.Registries;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
-
 import java.util.Map;
 import java.util.stream.Collectors;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.permissions.PermissionCheck;
+import net.minecraft.world.entity.EntityType;
 
 /**
  * {@code /toquemobs}: reload, status, zones, info, create, delete, enable and
@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
  * opposite corner, press Tab.
  */
 public final class ToqueMobCommands {
-    private static final int OPERATOR = 2;
+    private static final PermissionCheck OPERATOR = Commands.LEVEL_GAMEMASTERS;
 
     /** What /toquemobs create gives a box unless told otherwise. */
     private static final double BOX_MULTIPLIER = 10.0;
@@ -50,56 +50,56 @@ public final class ToqueMobCommands {
         this.spawner = spawner;
     }
 
-    public void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-        dispatcher.register(CommandManager.literal("toquemobs")
-                .requires(source -> source.hasPermissionLevel(OPERATOR))
-                .then(CommandManager.literal("reload").executes(this::reload))
-                .then(CommandManager.literal("status").executes(this::status))
-                .then(CommandManager.literal("zones").executes(this::zones))
-                .then(CommandManager.literal("info")
-                        .then(CommandManager.argument("zona", StringArgumentType.word())
-                                .suggests((context, builder) -> CommandSource.suggestMatching(
+    public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        dispatcher.register(Commands.literal("toquemobs")
+                .requires(Commands.hasPermission(OPERATOR))
+                .then(Commands.literal("reload").executes(this::reload))
+                .then(Commands.literal("status").executes(this::status))
+                .then(Commands.literal("zones").executes(this::zones))
+                .then(Commands.literal("info")
+                        .then(Commands.argument("zona", StringArgumentType.word())
+                                .suggests((context, builder) -> SharedSuggestionProvider.suggest(
                                         config.settings().zones().stream().map(Zone::name), builder))
                                 .executes(this::info)))
-                .then(CommandManager.literal("create")
-                        .then(CommandManager.argument("nombre", StringArgumentType.word())
-                                .then(CommandManager.argument("desde", BlockPosArgumentType.blockPos())
-                                        .then(CommandManager.argument("hasta", BlockPosArgumentType.blockPos())
+                .then(Commands.literal("create")
+                        .then(Commands.argument("nombre", StringArgumentType.word())
+                                .then(Commands.argument("desde", BlockPosArgument.blockPos())
+                                        .then(Commands.argument("hasta", BlockPosArgument.blockPos())
                                                 .executes(context -> create(context, BOX_MULTIPLIER))
-                                                .then(CommandManager.argument("multiplicador",
+                                                .then(Commands.argument("multiplicador",
                                                                 DoubleArgumentType.doubleArg(1.0, 50.0))
                                                         .executes(context -> create(context,
                                                                 DoubleArgumentType.getDouble(context, "multiplicador"))))))))
-                .then(CommandManager.literal("delete")
-                        .then(CommandManager.argument("zona", StringArgumentType.word())
-                                .suggests((context, builder) -> CommandSource.suggestMatching(
+                .then(Commands.literal("delete")
+                        .then(Commands.argument("zona", StringArgumentType.word())
+                                .suggests((context, builder) -> SharedSuggestionProvider.suggest(
                                         config.settings().zones().stream().map(Zone::name), builder))
                                 .executes(this::delete)))
-                .then(CommandManager.literal("enable").executes(context -> setEnabled(context, true)))
-                .then(CommandManager.literal("disable").executes(context -> setEnabled(context, false))));
+                .then(Commands.literal("enable").executes(context -> setEnabled(context, true)))
+                .then(Commands.literal("disable").executes(context -> setEnabled(context, false))));
     }
 
-    private int reload(CommandContext<ServerCommandSource> context) {
-        ServerCommandSource source = context.getSource();
+    private int reload(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
         ConfigManager.LoadResult result = config.load(source.getServer());
         spawner.onReload();
-        source.sendFeedback(() -> Text.literal(result.message())
-                .formatted(result.success() ? Formatting.GREEN : Formatting.RED), true);
+        source.sendSuccess(() -> Component.literal(result.message())
+                .withStyle(result.success() ? ChatFormatting.GREEN : ChatFormatting.RED), true);
         for (String warning : result.warnings()) {
-            source.sendFeedback(() -> Text.literal("⚠ " + warning).formatted(Formatting.YELLOW), false);
+            source.sendSuccess(() -> Component.literal("⚠ " + warning).withStyle(ChatFormatting.YELLOW), false);
         }
         return result.success() ? 1 : 0;
     }
 
-    private int status(CommandContext<ServerCommandSource> context) {
-        ServerCommandSource source = context.getSource();
+    private int status(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
         SpawnSettings settings = config.settings();
         ExtraMobTracker tracker = spawner.tracker();
 
         send(source, header("Toque Mob Spawner"));
         send(source, line("Estado", settings.enabled()
-                ? Text.literal("activado").formatted(Formatting.GREEN)
-                : Text.literal("desactivado").formatted(Formatting.RED)));
+                ? Component.literal("activado").withStyle(ChatFormatting.GREEN)
+                : Component.literal("desactivado").withStyle(ChatFormatting.RED)));
         send(source, line("Mobs extra cargados", value(tracker.size() + " / " + settings.globalMaxExtraMobs())));
         send(source, line("Revisión cada", value(settings.spawnCheckIntervalTicks() + " ticks")));
 
@@ -110,52 +110,52 @@ public final class ToqueMobCommands {
         }
 
         int inZones = 0;
-        for (ServerPlayerEntity player : source.getServer().getPlayerManager().getPlayerList()) {
-            String zone = spawner.zoneOf(player.getUuid());
+        for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
+            String zone = spawner.zoneOf(player.getUUID());
             if (zone == null) {
                 continue;
             }
             inZones++;
-            int near = tracker.countNear(player.getServerWorld(), player.getX(), player.getY(), player.getZ(),
+            int near = tracker.countNear(player.level(), player.getX(), player.getY(), player.getZ(),
                     settings.maxSpawnDistance());
-            send(source, line(player.getGameProfile().getName(),
+            send(source, line(player.getGameProfile().name(),
                     value(zone + " · " + near + " extra cerca")));
         }
         if (inZones == 0) {
-            send(source, Text.literal("Ningún jugador está dentro de una zona.").formatted(Formatting.GRAY));
+            send(source, Component.literal("Ningún jugador está dentro de una zona.").withStyle(ChatFormatting.GRAY));
         }
         return 1;
     }
 
-    private int zones(CommandContext<ServerCommandSource> context) {
-        ServerCommandSource source = context.getSource();
+    private int zones(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
         SpawnSettings settings = config.settings();
         send(source, header("Zonas (" + settings.zones().size() + ")"));
         if (settings.zones().isEmpty()) {
-            send(source, Text.literal("No hay zonas en " + config.file()).formatted(Formatting.GRAY));
+            send(source, Component.literal("No hay zonas en " + config.file()).withStyle(ChatFormatting.GRAY));
         }
         for (Zone zone : settings.zones()) {
-            send(source, Text.literal("▪ ").formatted(Formatting.GRAY)
-                    .append(Text.literal(zone.name()).formatted(zone.enabled() ? Formatting.WHITE : Formatting.DARK_GRAY))
-                    .append(Text.literal(" " + bounds(zone) + " · " + zone.spawnMultiplier() + "x · "
-                            + zone.mobs().size() + " mobs").formatted(Formatting.GRAY)));
+            send(source, Component.literal("▪ ").withStyle(ChatFormatting.GRAY)
+                    .append(Component.literal(zone.name()).withStyle(zone.enabled() ? ChatFormatting.WHITE : ChatFormatting.DARK_GRAY))
+                    .append(Component.literal(" " + bounds(zone) + " · " + zone.spawnMultiplier() + "x · "
+                            + zone.mobs().size() + " mobs").withStyle(ChatFormatting.GRAY)));
         }
         return settings.zones().size();
     }
 
-    private int info(CommandContext<ServerCommandSource> context) {
-        ServerCommandSource source = context.getSource();
+    private int info(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
         String name = StringArgumentType.getString(context, "zona");
         Zone zone = config.settings().zoneNamed(name);
         if (zone == null) {
-            source.sendError(Text.literal("No existe la zona '" + name + "'. Usa /toquemobs zones."));
+            source.sendFailure(Component.literal("No existe la zona '" + name + "'. Usa /toquemobs zones."));
             return 0;
         }
 
         int count = spawner.tracker().countByZone(config.settings().zones()).getOrDefault(zone.name(), 0);
         send(source, header("Zona " + zone.name()));
         send(source, line("Activa", value(zone.enabled() ? "sí" : "no")));
-        send(source, line("Dimensión", value(zone.dimension().getValue().toString())));
+        send(source, line("Dimensión", value(zone.dimension().identifier().toString())));
         send(source, line("Coordenadas", value(bounds(zone))));
         send(source, line("Aparecen", value(zone.spawnInAir()
                 ? "en el aire dentro de la zona, y caen"
@@ -177,17 +177,17 @@ public final class ToqueMobCommands {
         send(source, line("Mobs", value(zone.mobs().isEmpty() ? "ninguno"
                 : zone.mobs().stream().map(ToqueMobCommands::id).collect(Collectors.joining(", ")))));
         if (!zone.invalidMobs().isEmpty()) {
-            send(source, line("Inválidos", Text.literal(String.join(", ", zone.invalidMobs()))
-                    .formatted(Formatting.RED)));
+            send(source, line("Inválidos", Component.literal(String.join(", ", zone.invalidMobs()))
+                    .withStyle(ChatFormatting.RED)));
         }
         return 1;
     }
 
-    private int create(CommandContext<ServerCommandSource> context, double multiplier) throws CommandSyntaxException {
-        ServerCommandSource source = context.getSource();
+    private int create(CommandContext<CommandSourceStack> context, double multiplier) throws CommandSyntaxException {
+        CommandSourceStack source = context.getSource();
         String name = StringArgumentType.getString(context, "nombre");
-        BlockPos from = BlockPosArgumentType.getLoadedBlockPos(context, "desde");
-        BlockPos to = BlockPosArgumentType.getLoadedBlockPos(context, "hasta");
+        BlockPos from = BlockPosArgument.getLoadedBlockPos(context, "desde");
+        BlockPos to = BlockPosArgument.getLoadedBlockPos(context, "hasta");
 
         ModConfig.ZoneConfig zone = ModConfig.ZoneConfig.of(name,
                 Math.min(from.getX(), to.getX()), Math.max(from.getX(), to.getX()),
@@ -197,43 +197,43 @@ public final class ToqueMobCommands {
         zone.yMax = Math.max(from.getY(), to.getY());
         zone.spawnInside = true;
         zone.spawnsPerCheck = BOX_SPAWNS_PER_CHECK;
-        zone.dimension = source.getWorld().getRegistryKey().getValue().toString();
+        zone.dimension = source.getLevel().dimension().identifier().toString();
 
         ConfigManager.LoadResult result = config.addZone(source.getServer(), zone);
         if (!result.success()) {
-            source.sendError(Text.literal(result.message()));
+            source.sendFailure(Component.literal(result.message()));
             return 0;
         }
         spawner.onReload();
         Zone created = config.settings().zoneNamed(name);
-        source.sendFeedback(() -> Text.literal("Zona '" + name + "' creada: " + bounds(created)
+        source.sendSuccess(() -> Component.literal("Zona '" + name + "' creada: " + bounds(created)
                 + ". Hasta " + created.targetPerPlayer() + " mobs dentro mientras haya alguien adentro.")
-                .formatted(Formatting.GREEN), true);
-        source.sendFeedback(() -> Text.literal("Mobs, multiplicador y límites se cambian en "
+                .withStyle(ChatFormatting.GREEN), true);
+        source.sendSuccess(() -> Component.literal("Mobs, multiplicador y límites se cambian en "
                 + config.file().getFileName() + " y se aplican con /toquemobs reload.")
-                .formatted(Formatting.GRAY), false);
+                .withStyle(ChatFormatting.GRAY), false);
         return 1;
     }
 
-    private int delete(CommandContext<ServerCommandSource> context) {
-        ServerCommandSource source = context.getSource();
+    private int delete(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
         String name = StringArgumentType.getString(context, "zona");
         ConfigManager.LoadResult result = config.removeZone(source.getServer(), name);
         if (!result.success()) {
-            source.sendError(Text.literal(result.message()));
+            source.sendFailure(Component.literal(result.message()));
             return 0;
         }
         spawner.onReload();
-        source.sendFeedback(() -> Text.literal("Zona '" + name + "' borrada. Sus mobs extra se van cuando nadie esté cerca.")
-                .formatted(Formatting.YELLOW), true);
+        source.sendSuccess(() -> Component.literal("Zona '" + name + "' borrada. Sus mobs extra se van cuando nadie esté cerca.")
+                .withStyle(ChatFormatting.YELLOW), true);
         return 1;
     }
 
-    private int setEnabled(CommandContext<ServerCommandSource> context, boolean enabled) {
+    private int setEnabled(CommandContext<CommandSourceStack> context, boolean enabled) {
         config.setEnabled(enabled);
-        context.getSource().sendFeedback(() -> Text.literal("Toque Mob Spawner "
+        context.getSource().sendSuccess(() -> Component.literal("Toque Mob Spawner "
                 + (enabled ? "activado." : "desactivado. Los mobs extra que ya existen se quedan hasta que se alejen."))
-                .formatted(enabled ? Formatting.GREEN : Formatting.YELLOW), true);
+                .withStyle(enabled ? ChatFormatting.GREEN : ChatFormatting.YELLOW), true);
         return 1;
     }
 
@@ -247,24 +247,24 @@ public final class ToqueMobCommands {
     }
 
     private static String id(EntityType<?> type) {
-        return Registries.ENTITY_TYPE.getId(type).toString();
+        return BuiltInRegistries.ENTITY_TYPE.getKey(type).toString();
     }
 
-    private static void send(ServerCommandSource source, Text text) {
-        source.sendFeedback(() -> text, false);
+    private static void send(CommandSourceStack source, Component text) {
+        source.sendSuccess(() -> text, false);
     }
 
-    private static Text header(String title) {
-        return Text.literal("☠ " + title + " ☠").formatted(Formatting.RED, Formatting.BOLD);
+    private static Component header(String title) {
+        return Component.literal("☠ " + title + " ☠").withStyle(ChatFormatting.RED, ChatFormatting.BOLD);
     }
 
-    private static Text line(String label, Text value) {
-        MutableText text = Text.literal("▪ ").formatted(Formatting.GRAY)
-                .append(Text.literal(label + ": ").formatted(Formatting.WHITE));
+    private static Component line(String label, Component value) {
+        MutableComponent text = Component.literal("▪ ").withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(label + ": ").withStyle(ChatFormatting.WHITE));
         return text.append(value);
     }
 
-    private static Text value(String value) {
-        return Text.literal(value).formatted(Formatting.GOLD);
+    private static Component value(String value) {
+        return Component.literal(value).withStyle(ChatFormatting.GOLD);
     }
 }

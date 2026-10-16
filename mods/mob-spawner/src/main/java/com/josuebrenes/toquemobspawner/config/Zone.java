@@ -1,10 +1,9 @@
 package com.josuebrenes.toquemobspawner.config;
 
-import net.minecraft.entity.EntityType;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.world.World;
-
 import java.util.List;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.level.Level;
 
 /**
  * One zone after validation: bounds ordered, multiplier sane, every mob
@@ -21,7 +20,7 @@ import java.util.List;
  */
 public record Zone(String name,
                    boolean enabled,
-                   RegistryKey<World> dimension,
+                   ResourceKey<Level> dimension,
                    int xMin, int xMax,
                    int zMin, int zMax,
                    int yMin, int yMax,
@@ -42,7 +41,7 @@ public record Zone(String name,
     public static final int UNBOUNDED_MAX = Integer.MAX_VALUE;
 
     /** Inclusive on every edge, so 500 belongs to a zone running -500 to 500. */
-    public boolean contains(RegistryKey<World> world, int x, int y, int z) {
+    public boolean contains(ResourceKey<Level> world, int x, int y, int z) {
         return dimension.equals(world)
                 && x >= xMin && x <= xMax
                 && y >= yMin && y <= yMax
@@ -50,7 +49,7 @@ public record Zone(String name,
     }
 
     /** Whether a player here keeps a box zone active from outside it. */
-    public boolean isNear(RegistryKey<World> world, double x, double y, double z) {
+    public boolean isNear(ResourceKey<Level> world, double x, double y, double z) {
         if (!spawnInside || activationDistance <= 0 || !dimension.equals(world)) {
             return false;
         }

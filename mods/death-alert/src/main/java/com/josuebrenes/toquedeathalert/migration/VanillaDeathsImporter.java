@@ -4,7 +4,7 @@ import com.josuebrenes.toquedeathalert.core.ToqueLog;
 import com.josuebrenes.toquedeathalert.series.PlayerDeathRecord;
 import com.josuebrenes.toquedeathalert.series.SeriesStatsRepository;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
 
 /**
  * One-off seeding of a player's TOQUE counter from their vanilla deaths statistic.
@@ -32,15 +32,15 @@ public final class VanillaDeathsImporter {
     }
 
     /** Called once per join; does nothing unless this player has never been migrated. */
-    public void migrateOnJoin(MinecraftServer server, ServerPlayerEntity player) {
-        String name = player.getGameProfile().getName();
-        PlayerDeathRecord record = stats.touch(player.getUuid(), name);
+    public void migrateOnJoin(MinecraftServer server, ServerPlayer player) {
+        String name = player.getGameProfile().name();
+        PlayerDeathRecord record = stats.touch(player.getUUID(), name);
 
         if (record.migrated()) {
             return;
         }
         if (!stats.isVanillaImportOpen()) {
-            stats.markMigrated(player.getUuid(), name, record.deaths());
+            stats.markMigrated(player.getUUID(), name, record.deaths());
             ToqueLog.info("{} joins a reset series; starting at {} deaths.", name, record.deaths());
             return;
         }
@@ -49,21 +49,21 @@ public final class VanillaDeathsImporter {
     }
 
     /** Admin-triggered re-import, used to repair a counter that migrated as zero. */
-    public int forceImport(MinecraftServer server, ServerPlayerEntity player) {
-        PlayerDeathRecord record = stats.touch(player.getUuid(), player.getGameProfile().getName());
+    public int forceImport(MinecraftServer server, ServerPlayer player) {
+        PlayerDeathRecord record = stats.touch(player.getUUID(), player.getGameProfile().name());
         return apply(server, player, record, "command");
     }
 
-    private int apply(MinecraftServer server, ServerPlayerEntity player,
+    private int apply(MinecraftServer server, ServerPlayer player,
                       PlayerDeathRecord record, String trigger) {
-        String name = player.getGameProfile().getName();
-        VanillaDeathsLookup.Result vanilla = lookup.lookup(server, player.getUuid(), player);
+        String name = player.getGameProfile().name();
+        VanillaDeathsLookup.Result vanilla = lookup.lookup(server, player.getUUID(), player);
 
         // A death counted by TOQUE also bumped the vanilla statistic, so taking the
         // maximum imports the pre-TOQUE history without ever counting a death twice,
         // and without losing a TOQUE count when the vanilla stats file is already gone.
         int starting = Math.max(record.deaths(), vanilla.deaths());
-        stats.markMigrated(player.getUuid(), name, starting);
+        stats.markMigrated(player.getUUID(), name, starting);
 
         ToqueLog.info("Migration ({}) for {}: vanilla={} [{}], toque={} -> starting at {}.",
                 trigger, name, vanilla.deaths(), vanilla.origin(), record.deaths(), starting);

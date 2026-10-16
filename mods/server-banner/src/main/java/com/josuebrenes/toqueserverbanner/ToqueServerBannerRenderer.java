@@ -1,12 +1,12 @@
 package com.josuebrenes.toqueserverbanner;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.network.chat.Component;
 
 /**
  * Paints the TOQUE entry over the vanilla one.
@@ -19,10 +19,10 @@ import net.minecraft.util.Formatting;
 public final class ToqueServerBannerRenderer {
     /** Every character here must exist in Minecraft's font: no emoji above the BMP. */
     private static final String[] MESSAGES = {
-            "☠ UNA VIDA. UNA RUN. UN DESTINO.",
             "⚔ SOBREVIVE • EXPLORA • CONSTRUYE",
-            "⚡ ¿CUÁNTO DURARÁ ESTA RUN?",
-            "☠ SI UNO MUERE, TODOS REINICIAMOS."
+            "☠ HARDCORE, PERO SIGUES EN PIE.",
+            "⚡ ¿CUÁNTOS DÍAS AGUANTARÁS?",
+            "☠ SI MUERES, VE POR TUS COSAS."
     };
     private static final long MESSAGE_MILLIS = 1800L;
     private static final long PULSE_MILLIS = 2200L;
@@ -42,43 +42,41 @@ public final class ToqueServerBannerRenderer {
     private ToqueServerBannerRenderer() {
     }
 
-    public static void render(DrawContext context, ServerInfo server,
+    public static void render(GuiGraphicsExtractor context, ServerData server,
                               int x, int y, int entryWidth, int entryHeight, boolean hovered) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        TextRenderer font = client.textRenderer;
+        Minecraft client = Minecraft.getInstance();
+        Font font = client.font;
         int right = x + entryWidth;
         int bottom = y + entryHeight;
 
-        // Vanilla's text is batched and only reaches the screen when the draw
-        // context is flushed, which happens after this injection returns. Without
-        // this the name and the MOTD are painted on top of the panel meant to hide
-        // them, and the row reads as two rows of text on top of each other.
-        context.draw();
+        // Vanilla's text is drawn after the plain quads of the same stratum, so
+        // without a new one the name and the MOTD are painted on top of the panel
+        // meant to hide them, and the row reads as two rows of text on top of each
+        // other.
+        context.nextStratum();
 
-        RenderSystem.enableBlend();
         drawPanel(context, x, y, right, bottom, hovered);
 
-        context.drawTexture(ToqueServerBannerClientAssets.BANNER,
-                x + PADDING, y + (entryHeight - LOGO_SIZE) / 2, LOGO_SIZE, LOGO_SIZE,
-                0.0F, 0.0F, LOGO_TEXTURE_SIZE, LOGO_TEXTURE_SIZE,
+        context.blit(RenderPipelines.GUI_TEXTURED, ToqueServerBannerClientAssets.BANNER,
+                x + PADDING, y + (entryHeight - LOGO_SIZE) / 2, 0.0F, 0.0F,
+                LOGO_SIZE, LOGO_SIZE, LOGO_TEXTURE_SIZE, LOGO_TEXTURE_SIZE,
                 LOGO_TEXTURE_SIZE, LOGO_TEXTURE_SIZE);
 
         int textX = x + PADDING + LOGO_SIZE + LOGO_GAP;
         drawTitle(context, font, textX, y + 4);
         drawSeries(context, font, server, right, y + 4);
         drawStatus(context, font, server, right, y + 15);
-        context.drawTextWithShadow(font,
-                Text.literal(currentMessage()).formatted(Formatting.GRAY),
+        context.text(font,
+                Component.literal(currentMessage()).withStyle(ChatFormatting.GRAY),
                 textX, y + 25, 0xFFB0A0A0);
 
-        // Flush again so the panel's own text cannot be reordered behind whatever
-        // the screen draws after this entry.
-        context.draw();
-        RenderSystem.disableBlend();
+        // A fresh stratum again so whatever the screen draws after this entry
+        // is not reordered behind the panel's own text.
+        context.nextStratum();
     }
 
     /** Dark panel with a border that breathes, and brightens under the cursor. */
-    private static void drawPanel(DrawContext context, int x, int y, int right, int bottom,
+    private static void drawPanel(GuiGraphicsExtractor context, int x, int y, int right, int bottom,
                                   boolean hovered) {
         context.fillGradient(x, y, right, bottom,
                 hovered ? BACKGROUND_TOP_HOVER : BACKGROUND_TOP,
@@ -89,52 +87,41 @@ public final class ToqueServerBannerRenderer {
         int red = hovered ? 200 + (int) (55 * pulse) : 110 + (int) (60 * pulse);
         int border = 0xFF000000 | (red << 16) | (red / 6 << 8) | (red / 6);
 
-        context.drawBorder(x, y, right - x, bottom - y, border);
+        context.outline(x, y, right - x, bottom - y, border);
         context.fill(x, y, x + 2, bottom, border);
     }
 
-    private static void drawTitle(DrawContext context, TextRenderer font, int x, int y) {
-        context.drawTextWithShadow(font,
-                Text.literal("☠ TOQUE HARDCORE ☠")
-                        .formatted(Formatting.RED, Formatting.BOLD),
+    private static void drawTitle(GuiGraphicsExtractor context, Font font, int x, int y) {
+        context.text(font,
+                Component.literal("☠ TOQUE HARDCORE ☠")
+                        .withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
                 x, y, 0xFFFF5555);
     }
 
-    /** TRY and DAY, right aligned on the first line, when the MOTD carries them. */
-    private static void drawSeries(DrawContext context, TextRenderer font, ServerInfo server,
+    /** The day, right aligned on the first line, when the MOTD carries it. */
+    private static void drawSeries(GuiGraphicsExtractor context, Font font, ServerData server,
                                    int right, int y) {
         SeriesInfo series = SeriesInfo.from(server);
-        if (!series.hasTry() && !series.hasDay()) {
+        if (!series.hasDay()) {
             return;
         }
-        StringBuilder text = new StringBuilder();
-        if (series.hasTry()) {
-            text.append("TRY #").append(series.tryNumber());
-        }
-        if (series.hasTry() && series.hasDay()) {
-            text.append("   ");
-        }
-        if (series.hasDay()) {
-            text.append("DÍA ").append(series.day());
-        }
-
-        String line = text.toString();
-        context.drawTextWithShadow(font, Text.literal(line).formatted(Formatting.GOLD),
-                right - PADDING - font.getWidth(line), y, 0xFFFFAA00);
+        String line = "DÍA " + series.day();
+        context.text(font, Component.literal(line).withStyle(ChatFormatting.GOLD),
+                right - PADDING - font.width(line), y, 0xFFFFAA00);
     }
 
     /** Player count and ping, right aligned on the second line. */
-    private static void drawStatus(DrawContext context, TextRenderer font, ServerInfo server,
+    private static void drawStatus(GuiGraphicsExtractor context, Font font, ServerData server,
                                    int right, int y) {
         String players = playerCount(server);
         String ping = server.ping > 0L ? server.ping + "ms" : "--";
         String line = players + "   " + ping;
 
-        context.drawTextWithShadow(font, Text.literal(line).formatted(Formatting.GRAY),
-                right - PADDING - font.getWidth(line), y, pingColour(server.ping));
+        context.text(font, Component.literal(line).withStyle(ChatFormatting.GRAY),
+                right - PADDING - font.width(line), y, pingColour(server.ping));
     }
 
-    private static String playerCount(ServerInfo server) {
+    private static String playerCount(ServerData server) {
         if (server.players == null) {
             return "-/-";
         }

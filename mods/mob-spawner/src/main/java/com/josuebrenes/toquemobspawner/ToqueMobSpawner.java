@@ -2,6 +2,7 @@ package com.josuebrenes.toquemobspawner;
 
 import com.josuebrenes.toquemobspawner.command.ToqueMobCommands;
 import com.josuebrenes.toquemobspawner.config.ConfigManager;
+import com.josuebrenes.toquemobspawner.difficulty.MobDifficulty;
 import com.josuebrenes.toquemobspawner.spawn.ExtraMobTracker;
 import com.josuebrenes.toquemobspawner.spawn.SpawnManager;
 import net.fabricmc.api.ModInitializer;
@@ -28,7 +29,10 @@ public final class ToqueMobSpawner implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(config::load);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> spawner.onServerStopped());
 
-        ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> tracker.onLoad(entity));
+        ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+            tracker.onLoad(entity);
+            MobDifficulty.onLoad(entity);
+        });
         ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> tracker.onUnload(entity));
 
         ServerTickEvents.END_SERVER_TICK.register(spawner::onServerTick);

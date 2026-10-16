@@ -8,16 +8,16 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.josuebrenes.toquemobspawner.Log;
+import com.josuebrenes.toquemobspawner.difficulty.MobDifficulty;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.entity.EntityType;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.World;
-
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.level.Level;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -85,6 +85,7 @@ public final class ConfigManager {
         SpawnSettings loaded = resolve(raw, server, warnings);
         warnings.forEach(Log::warn);
         settings = loaded;
+        MobDifficulty.update(loaded);
 
         String message = "Loaded " + loaded.zones().size() + " zones"
                 + (loaded.enabled() ? "." : " (spawner disabled).");
@@ -222,6 +223,9 @@ public final class ConfigManager {
                 maxDistance,
                 clamp("maxSpawnAttempts", raw.maxSpawnAttempts, 1, 64, warnings),
                 clamp("despawnDistance", raw.despawnDistance, maxDistance, 256, warnings),
+                clamp("mobDamageMultiplier", raw.mobDamageMultiplier, 0.1, 10.0, warnings),
+                clamp("mobHealthMultiplier", raw.mobHealthMultiplier, 0.1, 10.0, warnings),
+                clamp("monsterCapMultiplier", raw.monsterCapMultiplier, 0.1, 10.0, warnings),
                 List.copyOf(zones));
     }
 
@@ -231,14 +235,14 @@ public final class ConfigManager {
         String name = raw.name == null || raw.name.isBlank() ? "zona_" + (index + 1) : raw.name.trim();
         String where = "Zone '" + name + "': ";
 
-        RegistryKey<World> dimension = World.OVERWORLD;
+        ResourceKey<Level> dimension = Level.OVERWORLD;
         if (raw.dimension != null && !raw.dimension.isBlank()) {
             Identifier id = Identifier.tryParse(raw.dimension.trim());
             if (id == null) {
                 warnings.add(where + "invalid dimension '" + raw.dimension + "', using minecraft:overworld.");
             } else {
-                dimension = RegistryKey.of(RegistryKeys.WORLD, id);
-                if (server.getWorld(dimension) == null) {
+                dimension = ResourceKey.create(Registries.DIMENSION, id);
+                if (server.getLevel(dimension) == null) {
                     warnings.add(where + "dimension " + id + " does not exist on this server; the zone will never match.");
                 }
             }
@@ -316,14 +320,22 @@ public final class ConfigManager {
             return null;
         }
         Identifier id = Identifier.tryParse(entry.trim());
-        if (id == null || !Registries.ENTITY_TYPE.containsId(id)) {
+        if (id == null || !BuiltInRegistries.ENTITY_TYPE.containsKey(id)) {
             return null;
         }
-        return Registries.ENTITY_TYPE.getOrEmpty(id).orElse(null);
+        return BuiltInRegistries.ENTITY_TYPE.getOptional(id).orElse(null);
     }
 
     private static int clamp(String field, int value, int min, int max, List<String> warnings) {
-        int clamped = MathHelper.clamp(value, min, max);
+        int clamped = Mth.clamp(value, min, max);
+        if (clamped != value) {
+            warnings.add(field + " = " + value + " is out of range; using " + clamped + ".");
+        }
+        return clamped;
+    }
+
+    private static double clamp(String field, double value, double min, double max, List<String> warnings) {
+        double clamped = Mth.clamp(value, min, max);
         if (clamped != value) {
             warnings.add(field + " = " + value + " is out of range; using " + clamped + ".");
         }
