@@ -20,17 +20,21 @@ public record SpawnSettings(boolean enabled,
                             int maxSpawnDistance,
                             int maxSpawnAttempts,
                             int despawnDistance,
+                            double mobDamageMultiplier,
+                            double mobHealthMultiplier,
+                            double monsterCapMultiplier,
                             List<Zone> zones) {
 
     /** Used before the first load and when nothing can be read: spawns nothing. */
     static SpawnSettings inactive() {
-        return new SpawnSettings(false, 0, 20, 0, 0, 24, 48, 1, 64, List.of());
+        return new SpawnSettings(false, 0, 20, 0, 0, 24, 48, 1, 64, 1.0, 1.0, 1.0, List.of());
     }
 
     SpawnSettings withEnabled(boolean value) {
         return new SpawnSettings(value, globalMaxExtraMobs, spawnCheckIntervalTicks,
                 baseMobsPerPlayer, maxSpawnsPerPlayerPerCheck, minSpawnDistance,
-                maxSpawnDistance, maxSpawnAttempts, despawnDistance, zones);
+                maxSpawnDistance, maxSpawnAttempts, despawnDistance, mobDamageMultiplier,
+                mobHealthMultiplier, monsterCapMultiplier, zones);
     }
 
     /** The first enabled zone holding this block. Zones earlier in the file win overlaps. */

@@ -11,6 +11,9 @@
       "com.josuebrenes.toquemobspawner.ToqueMobSpawner"
     ]
   },
+  "mixins": [
+    "toque-mob-spawner.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.19.5",
     "fabric-api": ">=0.162.0",

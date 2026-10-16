@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.josuebrenes.toquemobspawner.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "MobCategoryMixin",
+    "ServerPlayerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

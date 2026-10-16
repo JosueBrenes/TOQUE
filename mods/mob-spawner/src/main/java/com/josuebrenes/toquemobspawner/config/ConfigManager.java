@@ -8,6 +8,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.josuebrenes.toquemobspawner.Log;
+import com.josuebrenes.toquemobspawner.difficulty.MobDifficulty;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -84,6 +85,7 @@ public final class ConfigManager {
         SpawnSettings loaded = resolve(raw, server, warnings);
         warnings.forEach(Log::warn);
         settings = loaded;
+        MobDifficulty.update(loaded);
 
         String message = "Loaded " + loaded.zones().size() + " zones"
                 + (loaded.enabled() ? "." : " (spawner disabled).");
@@ -221,6 +223,9 @@ public final class ConfigManager {
                 maxDistance,
                 clamp("maxSpawnAttempts", raw.maxSpawnAttempts, 1, 64, warnings),
                 clamp("despawnDistance", raw.despawnDistance, maxDistance, 256, warnings),
+                clamp("mobDamageMultiplier", raw.mobDamageMultiplier, 0.1, 10.0, warnings),
+                clamp("mobHealthMultiplier", raw.mobHealthMultiplier, 0.1, 10.0, warnings),
+                clamp("monsterCapMultiplier", raw.monsterCapMultiplier, 0.1, 10.0, warnings),
                 List.copyOf(zones));
     }
 
@@ -323,6 +328,14 @@ public final class ConfigManager {
 
     private static int clamp(String field, int value, int min, int max, List<String> warnings) {
         int clamped = Mth.clamp(value, min, max);
+        if (clamped != value) {
+            warnings.add(field + " = " + value + " is out of range; using " + clamped + ".");
+        }
+        return clamped;
+    }
+
+    private static double clamp(String field, double value, double min, double max, List<String> warnings) {
+        double clamped = Mth.clamp(value, min, max);
         if (clamped != value) {
             warnings.add(field + " = " + value + " is out of range; using " + clamped + ".");
         }
